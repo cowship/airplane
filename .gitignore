@@ -1,0 +1,3 @@
+airplane_boarding_simulation/.gitignore
+# Byte-compiled / optimized / DLL files
+__pycache__/
