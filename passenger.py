@@ -1,5 +1,6 @@
 # passenger.py
 from __future__ import annotations
+from typing import Optional
 import random
 import numpy as np
 import config
@@ -50,7 +51,7 @@ class Passenger:
         target_seat: str,
         age_group: str = "adult",
         n_bins_used: int = 0,
-        bag_weights: tuple = None,
+        bag_weights: Optional[tuple] = None,
     ):
         self.id          = pass_id
         self.target_row  = target_row

@@ -1,5 +1,4 @@
 # analysis/monte_carlo.py
-from __future__ import annotations
 """
 Monte Carlo 반복 실행 + 통계 출력.
 
@@ -7,6 +6,8 @@ Monte Carlo 반복 실행 + 통계 출력.
     python analysis/monte_carlo.py
     python analysis/monte_carlo.py --trials 500 --strategies BySeat Steffen
 """
+from __future__ import annotations
+from typing import Optional
 import argparse
 import os
 import random
@@ -26,10 +27,10 @@ from visualization.results import save_all
 
 def run_mc(
     strategy_name: str,
-    n_trials: int               = None,
-    non_compliance_rate: float  = None,
-    bag_weights: tuple          = None,
-    show_progress: bool         = True,
+    n_trials: Optional[int]              = None,
+    non_compliance_rate: Optional[float] = None,
+    bag_weights: Optional[tuple]         = None,
+    show_progress: bool                  = True,
 ) -> np.ndarray:
     """
     strategy_name 전략으로 n_trials 회 시뮬레이션.

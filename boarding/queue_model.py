@@ -4,10 +4,10 @@
   1. 늦게 도착한 승객(Late Arrival) → 큐 끝으로 이동
   2. 비순응 승객(Non-compliance)    → 인접 위치로 랜덤 스왑
 """
+from __future__ import annotations
+from typing import Callable, Optional
 import random
-import math
 import config
-from typing import Callable
 
 
 class QueueManager:
@@ -19,8 +19,8 @@ class QueueManager:
         self,
         passengers: list,
         strategy_func: Callable,
-        non_compliance_rate: float = None,
-        late_arrival_rate: float   = None,
+        non_compliance_rate: Optional[float] = None,
+        late_arrival_rate: Optional[float]   = None,
     ):
         ncr = non_compliance_rate if non_compliance_rate is not None \
               else config.NON_COMPLIANCE_RATE
@@ -38,7 +38,7 @@ class QueueManager:
 
     # ── 공개 ────────────────────────────────────────────────
 
-    def pop_next(self):
+    def pop_next(self) -> Optional[object]:
         """다음 탑승 승객 반환. 큐가 비면 None."""
         return self.queue.pop(0) if self.queue else None
 

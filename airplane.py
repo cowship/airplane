@@ -1,13 +1,19 @@
 # airplane.py
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING
 import config
+
+# 순환 참조 방지: 타입 체크 시에만 임포트
+if TYPE_CHECKING:
+    from passenger import Passenger
 
 
 class Aisle:
     """통로 셀 상태 관리."""
 
-    def __init__(self, num_rows: int):
+    def __init__(self, num_rows: int) -> None:
         # 인덱스 0은 미사용, 1 ~ num_rows 사용
-        self.cells = [None] * (num_rows + 2)
+        self.cells: list[Optional[Passenger]] = [None] * (num_rows + 2)
 
     def is_clear(self, pos: int) -> bool:
         """pos+1 칸이 비어 있는지 확인."""
@@ -16,7 +22,7 @@ class Aisle:
             return self.cells[next_pos] is None
         return False
 
-    def move_passenger(self, passenger, from_pos: int, to_pos: int) -> None:
+    def move_passenger(self, passenger: Passenger, from_pos: int, to_pos: int) -> None:
         self.cells[from_pos] = None
         self.cells[to_pos]   = passenger
 
@@ -30,10 +36,10 @@ class Airplane:
 
     SEAT_COLS = ('A', 'B', 'C', 'D', 'E', 'F')
 
-    def __init__(self, num_rows: int = 33):
+    def __init__(self, num_rows: int = 33) -> None:
         self.num_rows = num_rows
         self.aisle    = Aisle(num_rows)
-        self.seats    = {
+        self.seats: dict[int, dict[str, Optional[Passenger]]] = {
             row: {col: None for col in self.SEAT_COLS}
             for row in range(1, num_rows + 1)
         }

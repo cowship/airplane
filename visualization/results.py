@@ -7,7 +7,7 @@ Monte Carlo 결과 시각화.
   results/{prefix}_boxplot.png             — 전략 비교 박스플롯
 """
 from __future__ import annotations
-
+from typing import Optional
 import os
 import sys
 
@@ -50,7 +50,7 @@ def plot_histogram(
     ticks: np.ndarray,
     method_name: str,
     prefix: str = "mc",
-    out_dir: str = None,
+    out_dir: Optional[str] = None,
 ) -> str:
     """단일 전략의 소요 시간 분포 히스토그램 저장."""
     out_dir = out_dir or config.RESULTS_DIR
@@ -91,7 +91,7 @@ def plot_histogram(
 def plot_boxplot(
     all_results: dict[str, np.ndarray],
     prefix: str = "mc",
-    out_dir: str = None,
+    out_dir: Optional[str] = None,
 ) -> str:
     """여러 전략의 소요 시간 비교 박스플롯 저장."""
     out_dir = out_dir or config.RESULTS_DIR
@@ -140,7 +140,7 @@ def plot_boxplot(
 def save_all(
     all_results: dict[str, np.ndarray],
     prefix: str = "mc",
-    out_dir: str = None,
+    out_dir: Optional[str] = None,
 ) -> list[str]:
     """히스토그램(전략별) + 박스플롯을 한번에 저장."""
     saved = []
