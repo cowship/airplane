@@ -1,13 +1,15 @@
 # simulation/engine.py
 """
 탑승 시뮬레이션 코어 루프.
-Airplane + QueueManager를 받아 모든 승객이 착석할 때까지 틱을 돌린다.
+AircraftBase + QueueManager를 받아 모든 승객이 착석할 때까지 틱을 돌린다.
+다중 채널(통로) 병렬 처리를 지원한다.
 """
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from collections import deque
 
 import config
-from airplane import Airplane
+from aircraft.base import AircraftBase
 from boarding.queue_model import QueueManager
 
 if TYPE_CHECKING:
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
 
 
 def run_boarding(
-    airplane: Airplane,
+    airplane: AircraftBase,
     queue_manager: QueueManager,
     total_passengers: int,
 ) -> int:
@@ -23,34 +25,48 @@ def run_boarding(
     Returns
     -------
     int
-        탑승 완료까지 소요된 틱 수.
-        config.MAX_TICKS 초과 시 -1 반환 (데드락 의심).
+        탑승 완료까지 소요된 틱 수. MAX_TICKS 초과 시 -1.
     """
     seated = 0
     ticks  = 0
-    aisle  = airplane.aisle
+    channels = airplane.channels
+
+    # 시작 전: 전체 큐를 채널별로 분리 (순서 유지)
+    ch_queues: list[deque[Passenger]] = [deque() for _ in channels]
+    while True:
+        p = queue_manager.pop_next()
+        if p is None:
+            break
+        for idx, ch in enumerate(channels):
+            if p.target_seat in ch.seat_cols:
+                ch_queues[idx].append(p)
+                break
 
     while seated < total_passengers:
         ticks += 1
         if ticks > config.MAX_TICKS:
-            return -1   # 데드락 감지
+            return -1
 
-        # ── 1) 통로 내 승객 행동 (뒤 → 앞 순서로 처리) ──────────
-        for pos in range(airplane.num_rows, 0, -1):
-            p = aisle.cells[pos]
-            if p is None:
-                continue
-            prev_state = p.state
-            p.act(airplane)
-            if prev_state != "seated" and p.state == "seated":
-                seated += 1
+        # ── 1) 모든 채널 통로 내 승객 행동 (뒤 → 앞) ──────────
+        for ch in channels:
+            aisle = ch.aisle
+            for pos in range(airplane.num_rows, 0, -1):
+                p = aisle.cells[pos]
+                if p is None:
+                    continue
+                prev = p.state
+                p.act(airplane)
+                if prev != "seated" and p.state == "seated":
+                    seated += 1
 
-        # ── 2) 입구(pos=1)가 비어 있으면 다음 승객 입장 ──────────
-        if aisle.cells[1] is None:
-            next_p: Passenger | None = queue_manager.pop_next()
-            if next_p is not None:
-                aisle.cells[1]     = next_p
-                next_p.current_pos = 1
+        # ── 2) 채널별 입구 처리 ────────────────────────────────
+        for idx, ch in enumerate(channels):
+            aisle = ch.aisle
+            entry = ch.entrance_row
+            if aisle.cells[entry] is None and ch_queues[idx]:
+                next_p: Passenger = ch_queues[idx].popleft()
+                aisle.cells[entry] = next_p
+                next_p.current_pos = entry
                 next_p.state       = "walking"
 
     return ticks

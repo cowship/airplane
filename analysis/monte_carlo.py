@@ -28,6 +28,7 @@ from visualization.results import save_all
 def run_mc(
     strategy_name: str,
     n_trials: Optional[int]              = None,
+    aircraft_name: str                   = "narrow_body",
     non_compliance_rate: Optional[float] = None,
     bag_weights: Optional[tuple]         = None,
     show_progress: bool                  = True,
@@ -48,9 +49,10 @@ def run_mc(
 
         ticks = run_simulation(
             strategy_name,
-            non_compliance_rate=non_compliance_rate,
-            bag_weights=bag_weights,
-            verbose=False,
+            aircraft_name       = aircraft_name,
+            non_compliance_rate = non_compliance_rate,
+            bag_weights         = bag_weights,
+            verbose             = False,
         )
         if ticks != -1:
             results.append(ticks)
@@ -109,6 +111,7 @@ def main():
     parser = argparse.ArgumentParser(description="Monte Carlo 탑승 분석")
     parser.add_argument("--trials",    "-n", type=int,   default=config.MC_TRIALS)
     parser.add_argument("--strategies","-s", nargs="+",  default=list(STRATEGIES.keys()))
+    parser.add_argument("--aircraft",  "-a", type=str,   default="narrow_body")
     parser.add_argument("--seed",            type=int,   default=config.RANDOM_SEED)
     parser.add_argument("--save",            action="store_true", help="JSON 저장")
     parser.add_argument("--plot",            action="store_true", help="그래프 PNG 저장")
@@ -118,7 +121,7 @@ def main():
     np.random.seed(args.seed)
 
     print(f"\n{'='*60}")
-    print(f"  Monte Carlo 시뮬레이션  |  반복 횟수: {args.trials}")
+    print(f"  Monte Carlo  |  기종: {args.aircraft}  |  반복: {args.trials}")
     print(f"{'='*60}")
 
     summaries   = []
@@ -126,7 +129,7 @@ def main():
 
     for name in args.strategies:
         print(f"\n▶ {name} ({args.trials}회 실행 중)")
-        arr = run_mc(name, n_trials=args.trials)
+        arr = run_mc(name, n_trials=args.trials, aircraft_name=args.aircraft)
         s   = summarize(name, arr)
         summaries.append(s)
         all_ticks[name] = arr

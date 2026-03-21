@@ -45,18 +45,26 @@ class Passenger:
     """
 
     # ── 클래스 레벨 어노테이션 (Pyright 인식용) ─────────────────
-    id:           int
-    target_row:   int
-    target_seat:  str
-    age_group:    str
-    group_id:     int    # 0 = 그룹 없음
-    disobedient:  bool   # 비순응 여부 (그룹 단위로 결정)
-    state:        str
-    current_pos:  int
-    num_bags:     int
-    stow_time:    int
-    is_confused:  bool
-    delay_timer:  int
+    id:               int
+    target_row:       int
+    target_seat:      str
+    age_group:        str
+    group_id:         int    # 0 = 그룹 없음
+    disobedient:      bool   # 비순응 여부 (그룹 단위로 결정)
+    state:            str
+    current_pos:      int
+    num_bags:         int
+    stow_time:        int
+    is_confused:      bool
+    delay_timer:      int
+    # ── 하차 전용 속성 ────────────────────────────────────────
+    deplane_state:    str    # "seated" | "collecting" | "walking" | "left"
+    deplane_priority: int    # 낮을수록 먼저 하차
+    deplane_current:  int    # 현재 통로 위치
+    collect_timer:    int    # 짐 수거 남은 틱
+    is_late_deplaner: bool   # 늦게 일어나는 승객 여부
+    # ── 기종 공통 ─────────────────────────────────────────────
+    aisle_dist:       int    # 통로까지 거리 (0=통로석, 클수록 창가)
 
     def __init__(
         self,
@@ -133,9 +141,11 @@ class Passenger:
 
     def _walk(self, airplane) -> None:
         """목표 행까지 통로를 전진하거나, 도착 시 짐 적재 시작."""
-        # 목표 행 도달
+        # 기종별 채널(통로) 선택
+        ch    = airplane.channel_for_seat(self.target_seat)
+        aisle = ch.aisle
+
         if self.current_pos == self.target_row:
-            # 착각 이벤트: 한 번만 발동
             if self.is_confused:
                 self.is_confused = False
                 self.delay_timer = config.CONFUSED_DELAY_TICKS
@@ -144,19 +154,19 @@ class Passenger:
             self.delay_timer = self.stow_time
             return
 
-        # 전진 시도
         self._walk_tick += 1
         if self._walk_tick >= self._walk_speed:
             self._walk_tick = 0
             next_pos = self.current_pos + 1
-            if airplane.aisle.is_clear(self.current_pos):
-                airplane.aisle.move_passenger(self, self.current_pos, next_pos)
+            if aisle.is_clear(self.current_pos):
+                aisle.move_passenger(self, self.current_pos, next_pos)
                 self.current_pos = next_pos
-            # 막혀 있으면 그냥 대기 (walk_tick은 0으로 리셋됐으므로 다음 틱에 재시도)
 
     def _sit_down(self, airplane) -> None:
         """통로에서 빠져나와 좌석에 착석."""
-        airplane.aisle.cells[self.current_pos] = None
+        ch    = airplane.channel_for_seat(self.target_seat)
+        aisle = ch.aisle
+        aisle.cells[self.current_pos] = None
         airplane.seats[self.target_row][self.target_seat] = self
         self.state = "seated"
 
