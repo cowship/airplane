@@ -1,80 +1,119 @@
 # main.py
+"""
+단일 시뮬레이션 실행 진입점.
+
+사용 예:
+    python main.py                        # 기본 전략 비교
+    python main.py --strategy BySeat      # 특정 전략만
+    python main.py --trials 500 --strategy Steffen
+"""
+import argparse
 import random
+import sys
+
+import config
 from passenger import Passenger
 from airplane import Airplane
-from boarding_system import BoardingStrategy, QueueManager
+from boarding.methods import get_strategy, STRATEGIES
+from boarding.queue_model import QueueManager
+from simulation.engine import run_boarding
 
-def generate_passengers(num_rows, bag_weights=(0.2, 0.6, 0.2)):  # 파라미터 추가
+
+# ── 승객 생성 ────────────────────────────────────────────────
+
+def generate_passengers(
+    airplane: Airplane,
+    bag_weights: tuple = None,
+) -> list[Passenger]:
+    """비행기의 모든 좌석에 대한 승객 객체 리스트 생성."""
     passengers = []
     pid = 1
-    seats = ['A', 'B', 'C', 'D', 'E', 'F']
-    for row in range(1, num_rows + 1):
-        for seat in seats:
-            age = "senior" if random.random() < 0.1 else "adult"
-            passengers.append(Passenger(pid, row, seat, age_group=age, bag_weights=bag_weights))  # bag_weights 전달
+    for row in range(1, airplane.num_rows + 1):
+        for seat in airplane.SEAT_COLS:
+            age = "senior" if random.random() < config.SENIOR_PROB else "adult"
+            p = Passenger(
+                pass_id     = pid,
+                target_row  = row,
+                target_seat = seat,
+                age_group   = age,
+                n_bins_used = airplane.bins_used(row),
+                bag_weights = bag_weights,
+            )
+            passengers.append(p)
             pid += 1
     return passengers
 
-def run_simulation(strategy_name, non_compliance_rate=0.1, bag_weights=(0.2, 0.6, 0.2)):
-    plane = Airplane(num_rows=33)
-    passengers = generate_passengers(33, bag_weights=bag_weights)  # 수하물 개수 분포 제어
-    
-    # 전략 선택
-    strategy_map = {
-        "Random":       BoardingStrategy.random_boarding,
-        "BackToFront":  BoardingStrategy.back_to_front,
-        "BySeat":       BoardingStrategy.by_seat,           # 추가한 경우
-        "BySection_Aft": BoardingStrategy.by_section,       # 추가한 경우
-        "Steffen":      BoardingStrategy.steffen_method,   # 추가한 경우
-    }
-        
-    # 줄 세우기 (규칙 미준수자 10% 반영)
-    if strategy_name not in strategy_map:
-        raise ValueError(f"알 수 없는 전략: '{strategy_name}'. 가능한 전략: {list(strategy_map.keys())}")
 
-    strategy = strategy_map[strategy_name]
+# ── 단일 실행 ────────────────────────────────────────────────
 
-    queue = QueueManager(passengers, strategy, non_compliance_rate=non_compliance_rate)
-    
-    time_ticks = 0
-    total_passengers = len(passengers)
-    seated_count = 0
-    
-    # 시뮬레이션 메인 루프 (모든 승객이 앉을 때까지)
-    while seated_count < total_passengers:
-        time_ticks += 1
-        
-        # 1. 통로에 있는 승객들 행동 업데이트 (뒤에서부터 역순으로 처리)
-        for row in range(plane.num_rows, 0, -1):
-            p = plane.aisle.cells[row]
-            if p is not None:
-                p.act(plane)
-                # act() 수행 후 상태가 'seated'로 변했다면 카운트 증가
-                if p.state == 'seated':
-                    seated_count += 1
-        
-        # 2. 비행기 입구(1열)가 비어있으면 대기열에서 새 승객 입장
-        if plane.aisle.cells[1] is None:
-            next_p = queue.pop_next_passenger()
-            if next_p:
-                plane.aisle.cells[1] = next_p
-                next_p.current_pos = 1
-                next_p.state = 'walking'
-                
-        # 무한 루프 방지용 (10배 스케일 고려하여 넉넉히 50000틱으로 설정)
-        if time_ticks > 50000:
-            print(f"⚠️ [{strategy_name}] 시뮬레이션 시간 초과 (Deadlock 의심)")
-            break
+def run_simulation(
+    strategy_name: str,
+    num_rows: int               = 33,
+    non_compliance_rate: float  = None,
+    bag_weights: tuple          = None,
+    verbose: bool               = True,
+) -> int:
+    """
+    시뮬레이션을 한 번 실행하고 소요 틱 수를 반환.
 
-    # 결과 출력 (10 Ticks = 1초 로 환산)
-    real_time_sec = time_ticks / 10
-    print(f"[{strategy_name}] 탑승 완료! 총 소요 시간: {time_ticks} Ticks (약 {real_time_sec:.1f}초)")
-    
-    return time_ticks
+    Returns
+    -------
+    int  소요 틱 수 (-1이면 데드락)
+    """
+    airplane    = Airplane(num_rows=num_rows)
+    passengers  = generate_passengers(airplane, bag_weights=bag_weights)
+    strategy    = get_strategy(strategy_name)
+
+    queue_mgr = QueueManager(
+        passengers,
+        strategy,
+        non_compliance_rate=non_compliance_rate,
+    )
+
+    ticks = run_boarding(airplane, queue_mgr, total_passengers=len(passengers))
+
+    if ticks == -1:
+        if verbose:
+            print(f"[{strategy_name}] ⚠️  데드락 감지 (MAX_TICKS 초과)")
+        return -1
+
+    real_sec = ticks * config.TICK_DURATION
+    if verbose:
+        print(
+            f"[{strategy_name:<14}] "
+            f"완료: {ticks:>6} ticks "
+            f"= {real_sec:>7.1f}s "
+            f"= {real_sec/60:.1f}분"
+        )
+    return ticks
+
+
+# ── CLI ─────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description="비행기 탑승 시뮬레이션")
+    parser.add_argument(
+        "--strategy", "-s",
+        choices=list(STRATEGIES.keys()) + ["all"],
+        default="all",
+        help="실행할 탑승 전략 (기본: all)",
+    )
+    parser.add_argument("--rows",   type=int,   default=33)
+    parser.add_argument("--seed",   type=int,   default=config.RANDOM_SEED)
+    args = parser.parse_args()
+
+    random.seed(args.seed)
+
+    print(f"\n{'='*55}")
+    print(f"  비행기 탑승 시뮬레이션  |  행: {args.rows}  |  seed: {args.seed}")
+    print(f"{'='*55}")
+
+    targets = list(STRATEGIES.keys()) if args.strategy == "all" else [args.strategy]
+    for name in targets:
+        run_simulation(name, num_rows=args.rows)
+
+    print(f"{'='*55}\n")
+
 
 if __name__ == "__main__":
-    print("🚀 시뮬레이션을 시작합니다...\n")
-    
-    # 여러 전략을 연속으로 실행하여 비교
-    run_simulation("Random")
-    run_simulation("BackToFront")
+    main()
