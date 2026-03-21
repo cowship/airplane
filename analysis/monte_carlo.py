@@ -61,7 +61,7 @@ def run_mc(
     return np.array(results)
 
 
-def summarize(name: str, arr: np.ndarray) -> dict:
+def summarize(name: str, arr: np.ndarray) -> dict[str, object]:
     """통계 요약 딕셔너리 반환."""
     secs = arr * config.TICK_DURATION
     return {
@@ -76,7 +76,7 @@ def summarize(name: str, arr: np.ndarray) -> dict:
     }
 
 
-def print_table(summaries: list[dict]) -> None:
+def print_table(summaries: list[dict[str, object]]) -> None:
     """결과를 보기 좋은 표로 출력."""
     header = f"\n{'전략':<18} {'평균(s)':>8} {'중앙(s)':>8} " \
              f"{'P5(s)':>8} {'P95(s)':>8} {'표준편차':>8}"
@@ -94,7 +94,7 @@ def print_table(summaries: list[dict]) -> None:
     print()
 
 
-def save_json(summaries: list[dict], path: str) -> None:
+def save_json(summaries: list[dict[str, object]], path: str) -> None:
     import json
     # ticks 리스트 제외하고 저장 (용량 절약 옵션)
     slim = [{k: v for k, v in s.items() if k != "ticks"} for s in summaries]

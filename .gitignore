@@ -14,6 +14,9 @@ env/
 # 생성된 그래프와 데이터는 git에 올리지 않음
 results/
 
+# ── 분석/계획 문서 (내부용) ───────────────────────────────────
+airplane_boarding_analysis_plan.md
+
 # ── IDE 설정 ─────────────────────────────────────────────────
 .vscode/
 .idea/
@@ -36,5 +39,3 @@ desktop.ini
 dist/
 build/
 *.egg-info/
-
-airplane_boarding_analysis_plan.md

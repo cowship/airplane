@@ -3,9 +3,15 @@
 탑승 시뮬레이션 코어 루프.
 Airplane + QueueManager를 받아 모든 승객이 착석할 때까지 틱을 돌린다.
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import config
 from airplane import Airplane
 from boarding.queue_model import QueueManager
+
+if TYPE_CHECKING:
+    from passenger import Passenger
 
 
 def run_boarding(
@@ -41,10 +47,10 @@ def run_boarding(
 
         # ── 2) 입구(pos=1)가 비어 있으면 다음 승객 입장 ──────────
         if aisle.cells[1] is None:
-            next_p = queue_manager.pop_next()
+            next_p: Passenger | None = queue_manager.pop_next()
             if next_p is not None:
-                aisle.cells[1]   = next_p
+                aisle.cells[1]     = next_p
                 next_p.current_pos = 1
-                next_p.state     = "walking"
+                next_p.state       = "walking"
 
     return ticks

@@ -5,9 +5,12 @@
   2. 비순응 승객(Non-compliance)    → 인접 위치로 랜덤 스왑
 """
 from __future__ import annotations
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 import random
 import config
+
+if TYPE_CHECKING:
+    from passenger import Passenger
 
 
 class QueueManager:
@@ -38,7 +41,7 @@ class QueueManager:
 
     # ── 공개 ────────────────────────────────────────────────
 
-    def pop_next(self) -> Optional[object]:
+    def pop_next(self) -> Optional[Passenger]:
         """다음 탑승 승객 반환. 큐가 비면 None."""
         return self.queue.pop(0) if self.queue else None
 
