@@ -17,6 +17,7 @@ import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.axes
 import matplotlib.patches as mpatches
 import matplotlib.animation as animation
 import matplotlib.colors as mcolors
@@ -137,7 +138,7 @@ def run_with_recording(
 # ── 단일 프레임 렌더링 ─────────────────────────────────────────
 
 def _render_frame(
-    ax: plt.Axes,
+    ax: matplotlib.axes.Axes,
     snapshot: dict[tuple[int, str], str],
     airplane: AircraftBase,
     tick: int,
@@ -219,9 +220,10 @@ def save_gif(
                                     max(5, airplane.num_rows * 0.25)))
     fig.suptitle(f"{aircraft_name} — {strategy_name}", fontsize=11, fontweight="bold")
 
-    def update(frame_idx: int) -> None:
+    def update(frame_idx: int) -> list[matplotlib.patches.Patch]:  # type: ignore[return]
         tick = frame_idx * capture_every
         _render_frame(ax, snapshots[frame_idx], airplane, tick)
+        return []
 
     ani = animation.FuncAnimation(
         fig,
@@ -264,7 +266,7 @@ def save_snapshots(
     fig.suptitle(f"{aircraft_name} — {strategy_name} (Boarding Progress)",
                  fontsize=11, fontweight="bold")
 
-    flat_axes = np.array(axes).flatten()
+    flat_axes: list[matplotlib.axes.Axes] = list(np.array(axes).flatten())
     for i, idx in enumerate(indices):
         tick = int(idx * capture_every)
         _render_frame(flat_axes[i], snapshots[idx], airplane, tick)
