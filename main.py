@@ -17,6 +17,7 @@ import config
 from passenger import Passenger
 from airplane import Airplane
 from boarding.methods import get_strategy, STRATEGIES
+from boarding.group_model import assign_groups
 from boarding.queue_model import QueueManager
 from simulation.engine import run_boarding
 
@@ -64,11 +65,15 @@ def run_simulation(
     """
     airplane    = Airplane(num_rows=num_rows)
     passengers  = generate_passengers(airplane, bag_weights=bag_weights)
-    strategy    = get_strategy(strategy_name)
 
+    # 그룹 배정 (config.USE_GROUPS=True 일 때만 동작)
+    assign_groups(passengers)
+
+    strategy  = get_strategy(strategy_name)
     queue_mgr = QueueManager(
         passengers,
         strategy,
+        strategy_name=strategy_name,        # 복잡도 기반 새치기
         non_compliance_rate=non_compliance_rate,
     )
 
