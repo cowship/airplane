@@ -71,14 +71,14 @@ def run_psi_sensitivity(
     orig_psi = config.GROUP_DISOBEY_PROB
 
     for psi in psi_vals:
-        config.GROUP_DISOBEY_PROB = psi
+        config.GROUP_DISOBEY_PROB = psi  # type: ignore[attr-defined]
         print(f"  ψ={psi:.1f}", end="  ", flush=True)
         for strategy in strategies:
             mean = _mean_sec(strategy, n_trials)
             results[strategy].append(mean)
         print()
 
-    config.GROUP_DISOBEY_PROB = orig_psi  # 원복
+    config.GROUP_DISOBEY_PROB = orig_psi  # type: ignore[attr-defined]
 
     # ── 그래프 저장 ──────────────────────────────────────────
     os.makedirs(out_dir, exist_ok=True)
