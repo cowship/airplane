@@ -6,13 +6,14 @@
   3. 그룹 단위 비순응 (2022019): 그룹 전체가 함께 이동
 """
 from __future__ import annotations
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional
 import random
-import math
 import config
 
 if TYPE_CHECKING:
     from passenger import Passenger
+    # 전략 함수 타입: Passenger 리스트 → Passenger 리스트
+    StrategyFunc = Callable[[list[Passenger]], list[Passenger]]
 
 
 class QueueManager:
@@ -27,8 +28,8 @@ class QueueManager:
     def __init__(
         self,
         passengers: list[Passenger],
-        strategy_func: Callable,
-        strategy_name: Optional[str]   = None,
+        strategy_func: StrategyFunc,
+        strategy_name: Optional[str]         = None,
         non_compliance_rate: Optional[float] = None,
         late_arrival_rate: Optional[float]   = None,
     ) -> None:

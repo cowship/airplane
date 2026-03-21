@@ -30,20 +30,20 @@ def assign_groups(passengers: list[Passenger]) -> list[Passenger]:
     - 그룹 크기: 1(70%), 2(20%), 3(10%)
     - 그룹 전체가 disobedient 여부를 동일하게 공유한다.
     """
-    if not config.USE_GROUPS:
+    if not config.USE_GROUPS:  # type: ignore[attr-defined]
         return passengers
 
     pool = list(passengers)
-    random.shuffle(pool)   # 좌석 위치와 무관하게 랜덤 그룹 형성
+    random.shuffle(pool)
 
     group_id = 1
     i = 0
     while i < len(pool):
         size = min(
-            random.choices([1, 2, 3], weights=config.GROUP_PROB)[0],
+            random.choices([1, 2, 3], weights=config.GROUP_PROB)[0],  # type: ignore[attr-defined]
             len(pool) - i,
         )
-        is_disobedient = random.random() < config.GROUP_DISOBEY_PROB
+        is_disobedient = random.random() < config.GROUP_DISOBEY_PROB  # type: ignore[attr-defined]
         for j in range(i, i + size):
             pool[j].group_id    = group_id
             pool[j].disobedient = is_disobedient

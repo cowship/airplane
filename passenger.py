@@ -44,6 +44,20 @@ class Passenger:
         waiting → walking → stowing → seating → seated
     """
 
+    # ── 클래스 레벨 어노테이션 (Pyright 인식용) ─────────────────
+    id:           int
+    target_row:   int
+    target_seat:  str
+    age_group:    str
+    group_id:     int    # 0 = 그룹 없음
+    disobedient:  bool   # 비순응 여부 (그룹 단위로 결정)
+    state:        str
+    current_pos:  int
+    num_bags:     int
+    stow_time:    int
+    is_confused:  bool
+    delay_timer:  int
+
     def __init__(
         self,
         pass_id: int,
@@ -52,11 +66,15 @@ class Passenger:
         age_group: str = "adult",
         n_bins_used: int = 0,
         bag_weights: Optional[tuple] = None,
+        group_id: int = 0,
+        disobedient: bool = False,
     ):
-        self.id          = pass_id
-        self.target_row  = target_row
-        self.target_seat = target_seat
-        self.age_group   = age_group
+        self.id           = pass_id
+        self.target_row   = target_row
+        self.target_seat  = target_seat
+        self.age_group    = age_group
+        self.group_id     = group_id       # 0 = 그룹 없음
+        self.disobedient  = disobedient    # 비순응 여부 (그룹 단위로 결정)
 
         # ── 상태 ────────────────────────────────────────────
         self.state       = "waiting"
@@ -64,18 +82,18 @@ class Passenger:
 
         # ── 이동 속도 ────────────────────────────────────────
         if age_group == "senior":
-            self._walk_speed   = config.SENIOR_WALK_SPEED    # 틱/칸
-            self._stow_mult    = config.SENIOR_STOW_MULT
+            self._walk_speed = config.SENIOR_WALK_SPEED
+            self._stow_mult  = config.SENIOR_STOW_MULT
         else:
-            self._walk_speed   = config.ADULT_WALK_SPEED
-            self._stow_mult    = 1.0
+            self._walk_speed = config.ADULT_WALK_SPEED
+            self._stow_mult  = 1.0
 
-        self._walk_tick = 0   # 이동 속도 조절용 내부 카운터
+        self._walk_tick = 0
 
         # ── 짐 ──────────────────────────────────────────────
         weights = bag_weights or config.BAG_PROB
-        self.num_bags = random.choices([0, 1, 2], weights=weights)[0]
-        raw_ticks     = _sample_bag_stow_time(self.num_bags, n_bins_used)
+        self.num_bags  = random.choices([0, 1, 2], weights=weights)[0]
+        raw_ticks      = _sample_bag_stow_time(self.num_bags, n_bins_used)
         self.stow_time = round(raw_ticks * self._stow_mult)
 
         # ── 기타 속성 ────────────────────────────────────────

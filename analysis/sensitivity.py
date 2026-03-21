@@ -25,7 +25,7 @@ import matplotlib.ticker as mticker
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import config
-from main import run_simulation
+from main import run_simulation  # type: ignore[import]
 from boarding.methods import STRATEGIES, boarding_complexity
 
 
@@ -68,7 +68,7 @@ def run_psi_sensitivity(
     psi_vals = psi_values or [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
     results: dict[str, list[float]] = {s: [] for s in strategies}
 
-    orig_psi = config.GROUP_DISOBEY_PROB
+    orig_psi = config.GROUP_DISOBEY_PROB  # type: ignore[attr-defined]
 
     for psi in psi_vals:
         config.GROUP_DISOBEY_PROB = psi  # type: ignore[attr-defined]

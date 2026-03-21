@@ -18,7 +18,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import config
-from main import run_simulation
+from main import run_simulation  # type: ignore[import]
 from boarding.methods import STRATEGIES
 from visualization.results import save_all
 
