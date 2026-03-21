@@ -1,28 +1,37 @@
 # passenger.py
+from __future__ import annotations
 import random
-import math
+import numpy as np
 import config
 
 
 def _sample_bag_stow_time(n_bags: int, n_bins_used: int = 0) -> int:
     """
-    오버헤드 빈 포화도를 반영한 짐 적재 틱 수 계산.
-    2022019팀 수식 기반, TICK_DURATION 환산.
+    짐 적재 틱 수 계산.
+
+    USE_WEIBULL=True  → 2022031 Weibull 샘플링 (k=5.153, λ=7.774)
+    USE_WEIBULL=False → 2022019 포화도 수식
     """
     if n_bags == 0:
         return 0
 
-    fill = n_bins_used / config.OVERHEAD_BIN_MAX
-    # 포화도가 1에 너무 가까우면 나눗셈 발산 방지
-    fill = min(fill, 0.95)
+    if config.USE_WEIBULL:
+        # numpy Weibull: np.random.weibull(k) * λ
+        total_sec = 0.0
+        for _ in range(n_bags):
+            s = float(np.random.weibull(config.WEIBULL_K)) * config.WEIBULL_LAMBDA
+            s = max(config.WEIBULL_MIN_SEC, min(config.WEIBULL_MAX_SEC, s))
+            total_sec += s
+        ticks = round(total_sec / config.TICK_DURATION)
+    else:
+        # 2022019 포화도 수식
+        fill = min(n_bins_used / config.OVERHEAD_BIN_MAX, 0.95)
+        t_sec = config.BAG_BASE_TIME_SEC / (1 - config.BAG_FILL_COEFF * fill)
+        if n_bags == 2:
+            fill2 = min((n_bins_used + 1) / config.OVERHEAD_BIN_MAX, 0.95)
+            t_sec += config.BAG_EXTRA_SEC / (1 - fill2)
+        ticks = round(t_sec / config.TICK_DURATION)
 
-    t_sec = config.BAG_BASE_TIME_SEC / (1 - config.BAG_FILL_COEFF * fill)
-    if n_bags == 2:
-        fill2 = min((n_bins_used + 1) / config.OVERHEAD_BIN_MAX, 0.95)
-        t_sec += config.BAG_EXTRA_SEC / (1 - fill2)
-
-    ticks = round(t_sec / config.TICK_DURATION)
-    # 나이 배율은 호출 측에서 곱해서 전달
     return max(1, ticks)
 
 

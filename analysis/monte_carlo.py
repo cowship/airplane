@@ -1,4 +1,5 @@
 # analysis/monte_carlo.py
+from __future__ import annotations
 """
 Monte Carlo 반복 실행 + 통계 출력.
 
@@ -18,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import config
 from main import run_simulation
 from boarding.methods import STRATEGIES
+from visualization.results import save_all
 
 
 # ── 핵심 함수 ────────────────────────────────────────────────
@@ -107,7 +109,8 @@ def main():
     parser.add_argument("--trials",    "-n", type=int,   default=config.MC_TRIALS)
     parser.add_argument("--strategies","-s", nargs="+",  default=list(STRATEGIES.keys()))
     parser.add_argument("--seed",            type=int,   default=config.RANDOM_SEED)
-    parser.add_argument("--save",            action="store_true")
+    parser.add_argument("--save",            action="store_true", help="JSON 저장")
+    parser.add_argument("--plot",            action="store_true", help="그래프 PNG 저장")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -117,18 +120,25 @@ def main():
     print(f"  Monte Carlo 시뮬레이션  |  반복 횟수: {args.trials}")
     print(f"{'='*60}")
 
-    summaries = []
+    summaries   = []
+    all_ticks: dict[str, np.ndarray] = {}
+
     for name in args.strategies:
         print(f"\n▶ {name} ({args.trials}회 실행 중)")
         arr = run_mc(name, n_trials=args.trials)
         s   = summarize(name, arr)
         summaries.append(s)
+        all_ticks[name] = arr
 
     print_table(summaries)
 
     if args.save:
         os.makedirs(config.RESULTS_DIR, exist_ok=True)
         save_json(summaries, os.path.join(config.RESULTS_DIR, "mc_results.json"))
+
+    if args.plot:
+        print("\n📊 그래프 저장 중...")
+        save_all(all_ticks, out_dir=config.RESULTS_DIR)
 
 
 if __name__ == "__main__":
