@@ -7,6 +7,8 @@
     python main.py --strategy BySeat      # 특정 전략만
     python main.py --trials 500 --strategy Steffen
 """
+from __future__ import annotations
+from typing import Optional
 import argparse
 import random
 import sys
@@ -23,7 +25,7 @@ from simulation.engine import run_boarding
 
 def generate_passengers(
     airplane: Airplane,
-    bag_weights: tuple = None,
+    bag_weights: Optional[tuple] = None,
 ) -> list[Passenger]:
     """비행기의 모든 좌석에 대한 승객 객체 리스트 생성."""
     passengers = []
@@ -48,10 +50,10 @@ def generate_passengers(
 
 def run_simulation(
     strategy_name: str,
-    num_rows: int               = 33,
-    non_compliance_rate: float  = None,
-    bag_weights: tuple          = None,
-    verbose: bool               = True,
+    num_rows: int                        = 33,
+    non_compliance_rate: Optional[float] = None,
+    bag_weights: Optional[tuple]         = None,
+    verbose: bool                        = True,
 ) -> int:
     """
     시뮬레이션을 한 번 실행하고 소요 틱 수를 반환.
