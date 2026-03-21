@@ -32,24 +32,23 @@ def generate_passengers(
     airplane: AircraftBase,
     bag_weights: Optional[tuple] = None,
 ) -> list[Passenger]:
-    """항공기의 모든 좌석에 대한 승객 객체 리스트 생성."""
+    """항공기의 모든 유효 좌석에 대한 승객 객체 리스트 생성."""
     passengers: list[Passenger] = []
     pid = 1
-    for row in range(1, airplane.num_rows + 1):
-        for seat in airplane.seat_cols:
-            age = "senior" if random.random() < config.SENIOR_PROB else "adult"
-            p = Passenger(
-                pass_id     = pid,
-                target_row  = row,
-                target_seat = seat,
-                age_group   = age,
-                n_bins_used = airplane.bins_used(row),
-                bag_weights = bag_weights,
-            )
-            # 기종별 통로 거리 배정 (by_seat 전략에서 사용)
-            p.aisle_dist = airplane.aisle_distance(seat)
-            passengers.append(p)
-            pid += 1
+    for (row, seat) in airplane.passenger_slots():
+        age = "senior" if random.random() < config.SENIOR_PROB else "adult"
+        p = Passenger(
+            pass_id     = pid,
+            target_row  = row,
+            target_seat = seat,
+            age_group   = age,
+            n_bins_used = airplane.bins_used(row),
+            bag_weights = bag_weights,
+        )
+        # 기종별 통로 거리 배정 (by_seat 전략에서 사용)
+        p.aisle_dist = airplane.aisle_distance(seat)
+        passengers.append(p)
+        pid += 1
     return passengers
 
 

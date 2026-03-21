@@ -102,7 +102,7 @@ class AircraftBase(ABC):
 
     @property
     def total_seats(self) -> int:
-        return self.num_rows * len(self.seat_cols)
+        return len(self.passenger_slots())
 
     def bins_used(self, row: int) -> int:
         return self._bins_used.get(row, 0)
@@ -113,6 +113,18 @@ class AircraftBase(ABC):
             used + n_bags, self.overhead_bin_capacity
         )
         return used
+
+    def passenger_slots(self) -> list[tuple[int, str]]:
+        """
+        유효한 (행, 좌석열) 조합 목록 반환.
+        비직사각형 기종(FlyingWing 등)에서 오버라이드.
+        기본: num_rows × seat_cols 전체.
+        """
+        return [
+            (row, col)
+            for row in range(1, self.num_rows + 1)
+            for col in self.seat_cols
+        ]
 
     def aisle_distance(self, seat_col: str) -> int:
         """통로까지의 거리 (0 = 통로석, 클수록 창가)."""
