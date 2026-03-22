@@ -63,6 +63,15 @@ class FlyingWing(AircraftBase):
     # A~X = 24열
     _SEAT_COLS = tuple('ABCDEFGHIJKLMNOPQRSTUVWX')
 
+    # 시각화: 채널당 내부 통로 1개씩 (채널 경계는 물리적 통로 아님)
+    DISPLAY_COLS = (
+        'A', 'B', 'C', 'AISLE', 'D', 'E', 'F',
+        'G', 'H', 'I', 'AISLE', 'J', 'K', 'L',
+        'M', 'N', 'O', 'AISLE', 'P', 'Q', 'R',
+        'S', 'T', 'U', 'AISLE', 'V', 'W', 'X',
+    )
+    AISLE_CH_MAP: dict[int, int] = {0: 0, 1: 1, 2: 2, 3: 3}
+
     def __init__(self) -> None:
         self._aisles   = [Aisle(self.num_rows) for _ in range(4)]
         self._channels = [

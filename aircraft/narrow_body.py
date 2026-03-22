@@ -30,7 +30,11 @@ class NarrowBody(AircraftBase):
     num_rows              = 33
     overhead_bin_capacity = 6
 
-    _SEAT_COLS = ('A', 'B', 'C', 'D', 'E', 'F')
+    _SEAT_COLS   = ('A', 'B', 'C', 'D', 'E', 'F')
+    # 시각화: 열 순서 (AISLE = 통로 위치)
+    DISPLAY_COLS = ('A', 'B', 'C', 'AISLE', 'D', 'E', 'F')
+    # aisle_idx → ch_idx 매핑
+    AISLE_CH_MAP: dict[int, int] = {0: 0}
 
     def __init__(self) -> None:
         self._aisle   = Aisle(self.num_rows)

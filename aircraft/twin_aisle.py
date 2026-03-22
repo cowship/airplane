@@ -67,6 +67,25 @@ class TwinAisle(AircraftBase):
 
     _SEAT_COLS = tuple('ABCDEFGHIJKLMN')
 
+    # ── 시각화 설정 ───────────────────────────────────────────────
+    # 실제 기체는 세로로 긴 1개 평면 (전방 섹션 + 후방 섹션 끝-끝 연결)
+    # X축: A B [통로0] C D E [통로1] F G  (7좌석 + 2통로 = 9칸)
+    # Y축: 전방 1-14행 + 후방 15-35행     (총 35행)
+    DISPLAY_COLS = ('A', 'B', 'AISLE', 'C', 'D', 'E', 'AISLE', 'F', 'G')
+
+    # 후방 섹션 열(H-N) → 전방 표시 열(A-G) 매핑
+    # (후방은 전방과 동일한 단면, 단 Y축 오프셋만 다름)
+    BACK_REMAP: dict[str, str] = {
+        'H': 'A', 'I': 'B', 'J': 'C', 'K': 'D',
+        'L': 'E', 'M': 'F', 'N': 'G',
+    }
+    FRONT_DEPTH = 14   # 전방 섹션 최대 행 수
+    BACK_DEPTH  = 21   # 후방 섹션 최대 행 수
+
+    # aisle_idx → (전방 ch_idx, 후방 ch_idx)
+    # ch0=전방-left, ch1=전방-right, ch2=후방-left, ch3=후방-right
+    AISLE_SPLIT_MAP: dict[int, tuple[int, int]] = {0: (0, 2), 1: (1, 3)}
+
     def __init__(self) -> None:
         # 4개 독립 채널: 전방-left, 전방-right, 후방-left, 후방-right
         self._front_left_aisle  = Aisle(self.num_rows)
