@@ -99,10 +99,15 @@ def print_table(summaries: list[dict[str, object]]) -> None:
 
 def save_json(summaries: list[dict[str, object]], path: str) -> None:
     import json
-    # ticks 리스트 제외하고 저장 (용량 절약 옵션)
-    slim = [{k: v for k, v in s.items() if k != "ticks"} for s in summaries]
+    # ticks 포함하여 저장 (원시 데이터 보존)
+    serializable = []
+    for s in summaries:
+        entry = {}
+        for k, v in s.items():
+            entry[k] = v if not hasattr(v, 'tolist') else v  # type: ignore[union-attr]
+        serializable.append(entry)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(slim, f, ensure_ascii=False, indent=2)
+        json.dump(serializable, f, ensure_ascii=False, indent=2)
     print(f"JSON 저장: {path}")
 
 
