@@ -132,15 +132,36 @@ def run_turnaround(
 
 _OCCUPANCY_RATES = [1.0, 0.75, 0.50, 0.30]
 
-
+# 논문 기준 구조적 탑승률 패턴
 def _subsample_slots(
     airplane: AircraftBase,
     rate: float,
 ) -> list[tuple[int, str]]:
-    """전체 좌석 중 rate 비율만 무작위 선택."""
+    """
+    탑승률에 따른 구조적 좌석 제거.
+    - 100%: 전체
+    - 75%: 4행마다 1행 비움 (격행 변형)
+    - 50%: 격행 (2행마다 1행 비움)
+    - 30%: 3행마다 2행 비움 + 중간 좌석 제거
+    단순 무작위 샘플이 아닌 구조적 패턴을 사용해 현실적 사회적 거리두기를 반영.
+    """
     all_slots = airplane.passenger_slots()
-    k = max(1, round(len(all_slots) * rate))
-    return random.sample(all_slots, k)
+
+    if rate >= 1.0:
+        return all_slots
+    elif rate >= 0.70:
+        # 4행마다 1행 제거 → ~75%
+        return [(r, c) for r, c in all_slots if r % 4 != 0]
+    elif rate >= 0.45:
+        # 격행 → ~50%
+        return [(r, c) for r, c in all_slots if r % 2 == 1]
+    else:
+        # 격행 + 창가만 → ~30%
+        max_dist = max(airplane.aisle_distance(c) for _, c in all_slots)
+        return [
+            (r, c) for r, c in all_slots
+            if r % 2 == 1 and airplane.aisle_distance(c) >= max_dist - 1
+        ]
 
 
 def run_occupancy(

@@ -14,6 +14,7 @@ from typing import Optional
 import argparse
 import os
 import sys
+from datetime import datetime
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -170,18 +171,24 @@ def _render_frame(
         )
         ax.add_patch(rect)
 
-    # 통로 표시 (회색 세로선)
-    aisle_cols_set = set()
-    for ch in airplane.channels:
-        aisle_cols_set |= ch.seat_cols
-    # 채널 경계 사이에 통로선
+    # ── 통로를 명시적 셀로 표시 ──────────────────────────────
+    # 채널 경계 사이의 x 위치를 통로 셀로 렌더링
     for idx in range(len(airplane.channels) - 1):
         ch0 = airplane.channels[idx]
         ch1 = airplane.channels[idx + 1]
         last_col  = sorted(ch0.seat_cols, key=lambda c: col_idx.get(c, 0))[-1]
         first_col = sorted(ch1.seat_cols, key=lambda c: col_idx.get(c, 0))[0]
         x_aisle   = (col_idx[last_col] + col_idx[first_col]) / 2
-        ax.axvline(x_aisle, color="#999999", linewidth=1.5, zorder=0)
+        # 통로 열 전체를 회색 배경으로 채우기
+        ax.fill_betweenx(
+            [-0.5, n_rows - 0.5],
+            x_aisle - 0.35, x_aisle + 0.35,
+            color="#CCCCCC", alpha=0.5, zorder=0,
+        )
+        # 통로 상단에 "│" 레이블
+        ax.text(x_aisle, n_rows - 0.2, "aisle",
+                ha="center", va="bottom", fontsize=5,
+                color="#666666", rotation=90)
 
     ax.set_xlim(-0.6, n_cols - 0.4)
     ax.set_ylim(-0.6, n_rows - 0.4)
@@ -233,7 +240,8 @@ def save_gif(
         repeat=False,
     )
 
-    path = os.path.join(out_dir, f"boarding_{aircraft_name}_{strategy_name}.gif")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"boarding_{aircraft_name}_{strategy_name}_{ts}.gif")
     ani.save(path, writer="pillow", fps=fps)
     plt.close(fig)
     print(f"  저장: {path}")
@@ -276,8 +284,9 @@ def save_snapshots(
         flat_axes[j].set_visible(False)
 
     fig.tight_layout()
+    ts   = datetime.now().strftime("%H%M%S")
     path = os.path.join(out_dir,
-                        f"boarding_snapshots_{aircraft_name}_{strategy_name}.png")
+                        f"boarding_snapshots_{aircraft_name}_{strategy_name}_{ts}.png")
     fig.savefig(path, dpi=120, bbox_inches="tight")
     plt.close(fig)
     print(f"  저장: {path}")

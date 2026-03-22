@@ -73,17 +73,21 @@ def by_section(
 
 def by_seat(passengers: list[Passenger]) -> list[Passenger]:
     """
-    창가(A/F) → 중간(B/E) → 통로(C/D) 순서로 탑승 — M=3.
+    창가 → 중간 → 통로 순서로 탑승 — M=3.
+    통로 거리는 Passenger.aisle_dist 속성을 사용 (기종별 사전 배정).
     같은 우선순위 그룹 내부는 완전 랜덤.
     """
-    priority: dict[str, int] = {'A': 0, 'F': 0, 'B': 1, 'E': 1, 'C': 2, 'D': 2}
-    buckets: dict[int, list[Passenger]] = {0: [], 1: [], 2: []}
+    # aisle_dist 속성이 없으면 0으로 폴백
+    max_dist = max((getattr(p, 'aisle_dist', 0) for p in passengers), default=2)
+    buckets: dict[int, list[Passenger]] = {d: [] for d in range(max_dist + 1)}
     for p in passengers:
-        buckets[priority[p.target_seat]].append(p)
+        dist = getattr(p, 'aisle_dist', 0)
+        buckets[dist].append(p)
 
     result: list[Passenger] = []
-    for g in (0, 1, 2):
-        grp = list(buckets[g])
+    # 거리 큰 것(창가)부터 먼저
+    for d in range(max_dist, -1, -1):
+        grp = list(buckets[d])
         random.shuffle(grp)
         result.extend(grp)
     return result
@@ -93,15 +97,21 @@ def steffen_method(passengers: list[Passenger]) -> list[Passenger]:
     """
     Steffen (2008): 짝수열 창가 → 홀수열 창가 → ... — M=N.
     이론적 최적이나 현실 적용 어려움.
+    aisle_dist 속성 기반으로 기종 범용화.
     """
-    col_priority: dict[str, int] = {'A': 0, 'F': 0, 'B': 2, 'E': 2, 'C': 4, 'D': 4}
-
     def steffen_key(p: Passenger) -> tuple[int, int]:
-        cp     = col_priority[p.target_seat]
+        # aisle_dist 클수록 창가 → 먼저 탑승 (dist 내림차순)
+        dist   = getattr(p, 'aisle_dist', 0)
+        # 짝수 행이 홀수 행보다 먼저
         parity = 0 if p.target_row % 2 == 0 else 1
-        return (cp + parity, -p.target_row)
+        # dist 큰 것(창가) 먼저, 같으면 짝수열 먼저, 같으면 뒷행 먼저
+        return (-dist + parity * 0.5, -p.target_row)  # type: ignore[return-value]
 
-    return sorted(passengers, key=steffen_key)
+    return sorted(passengers, key=lambda p: (
+        -(getattr(p, 'aisle_dist', 0)),
+        0 if p.target_row % 2 == 0 else 1,
+        -p.target_row,
+    ))
 
 
 # ── 전략 레지스트리 ───────────────────────────────────────────

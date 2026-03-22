@@ -187,12 +187,80 @@ def print_complexity_table(n_passengers: int = 198) -> None:
     print()
 
 
+# ── D. 핵심 파라미터 민감도 ──────────────────────────────────
+# config에 하드코딩된 값들이 결과에 얼마나 민감한지 확인
+# 참고 문헌 근거가 있는 값은 검증, 없는 값은 범위 탐색
+
+_PARAM_RANGES: dict[str, list] = {
+    "ADULT_WALK_SPEED":  [1, 2, 3, 4],          # 틱/칸 (0.5~2.0s/칸)
+    "R_J_MAX":           [0.1, 0.3, 0.5, 0.7],  # 최대 새치기 비율
+    "LATE_ARRIVAL_RATE": [0.02, 0.05, 0.10, 0.20],  # 지각 승객 비율
+}
+
+_PARAM_LABELS: dict[str, str] = {
+    "ADULT_WALK_SPEED":  "Walk Speed (ticks/cell)",
+    "R_J_MAX":           "Max Queue-Jump Rate R_J_max",
+    "LATE_ARRIVAL_RATE": "Late Arrival Rate R_L",
+}
+
+
+def run_param_sensitivity(
+    param_name: str,
+    strategies: list[str],
+    n_trials: int = _TRIALS,
+    out_dir: str  = config.RESULTS_DIR,
+) -> dict[str, list[float]]:
+    """
+    단일 파라미터를 범위 내에서 변화시키며 전략별 탑승 시간 측정.
+    다른 파라미터는 고정.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    values  = _PARAM_RANGES[param_name]
+    results = {s: [] for s in strategies}
+
+    orig_val = getattr(config, param_name)
+
+    for val in values:
+        setattr(config, param_name, val)  # type: ignore[attr-defined]
+        print(f"  {param_name}={val}", end="  ", flush=True)
+        for strategy in strategies:
+            mean = _mean_sec(strategy, n_trials)
+            results[strategy].append(mean)
+        print()
+
+    setattr(config, param_name, orig_val)  # type: ignore[attr-defined]
+
+    # ── 그래프 ────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for strategy in strategies:
+        ax.plot(values, results[strategy],
+                marker="o", linewidth=2,
+                color=_COLORS.get(strategy, "#333"),
+                label=strategy)
+
+    ax.set_title(f"Parameter Sensitivity: {_PARAM_LABELS.get(param_name, param_name)}",
+                 fontsize=12, fontweight="bold")
+    ax.set_xlabel(_PARAM_LABELS.get(param_name, param_name), fontsize=10)
+    ax.set_ylabel("Mean Boarding Time (s)", fontsize=10)
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%ds"))
+    ax.legend(fontsize=9, ncol=2)
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+
+    path = os.path.join(out_dir, f"sensitivity_param_{param_name}.png")
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"\n  저장: {path}")
+    return results
+
+
 # ── CLI ─────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="감도 분석")
     parser.add_argument(
-        "--mode", choices=["psi", "bags", "complexity", "all"],
+        "--mode",
+        choices=["psi", "bags", "complexity", "params", "all"],
         default="all",
     )
     parser.add_argument(
@@ -217,6 +285,12 @@ def main() -> None:
     if args.mode in ("bags", "all"):
         print("\n▶ 수하물 감도 분석")
         run_bag_sensitivity(args.strategies, n_trials=args.trials)
+
+    if args.mode in ("params", "all"):
+        print("\n▶ 핵심 파라미터 민감도 분석")
+        for param in _PARAM_RANGES:
+            print(f"\n  [{param}]")
+            run_param_sensitivity(param, args.strategies, n_trials=args.trials)
 
 
 if __name__ == "__main__":
