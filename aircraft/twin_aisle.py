@@ -33,8 +33,8 @@ _FRONT_COLS = frozenset('ABCDEFG')
 _BACK_COLS  = frozenset('HIJKLMN')
 
 # 전방 섹션 행 깊이
-#   논문 기준: outer(A,B,F,G) = 15행, middle(C,D,E) = 13행
-_FRONT_OUTER_ROWS  = 15   # A, B, F, G
+#   논문 기준: outer(A,B,F,G) = 14행, middle(C,D,E) = 13행
+_FRONT_OUTER_ROWS  = 14   # A, B, F, G
 _FRONT_MIDDLE_ROWS = 13   # C, D, E
 _FRONT_OUTER_COLS  = frozenset('ABFG')
 _FRONT_MIDDLE_COLS = frozenset('CDE')
@@ -79,7 +79,7 @@ class TwinAisle(AircraftBase):
         'H': 'A', 'I': 'B', 'J': 'C', 'K': 'D',
         'L': 'E', 'M': 'F', 'N': 'G',
     }
-    FRONT_DEPTH = 15   # 전방 섹션 최대 행 수
+    FRONT_DEPTH = 14   # 전방 섹션 최대 행 수
     BACK_DEPTH  = 21   # 후방 섹션 최대 행 수
 
     # aisle_idx → (전방 ch_idx, 후방 ch_idx)
@@ -93,14 +93,16 @@ class TwinAisle(AircraftBase):
         self._back_left_aisle   = Aisle(self.num_rows)
         self._back_right_aisle  = Aisle(self.num_rows)
 
+        # 전방 채널: row 1에서 진입, row 증가 방향
         self._front_left_ch  = BoardingChannel(
-            self._front_left_aisle,  1, set(_FRONT_LEFT))
+            self._front_left_aisle,  1, set(_FRONT_LEFT),  direction=1)
         self._front_right_ch = BoardingChannel(
-            self._front_right_aisle, 1, set(_FRONT_RIGHT))
+            self._front_right_aisle, 1, set(_FRONT_RIGHT), direction=1)
+        # 후방 채널: row num_rows(21)에서 진입, row 감소 방향
         self._back_left_ch   = BoardingChannel(
-            self._back_left_aisle,   1, set(_BACK_LEFT))
+            self._back_left_aisle,   self.num_rows, set(_BACK_LEFT),  direction=-1)
         self._back_right_ch  = BoardingChannel(
-            self._back_right_aisle,  1, set(_BACK_RIGHT))
+            self._back_right_aisle,  self.num_rows, set(_BACK_RIGHT), direction=-1)
         super().__init__()
 
     @property

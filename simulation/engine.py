@@ -47,10 +47,16 @@ def run_boarding(
         if ticks > config.MAX_TICKS:
             return -1
 
-        # ── 1) 모든 채널 통로 내 승객 행동 (뒤 → 앞) ──────────
+        # ── 1) 모든 채널 통로 내 승객 행동 ────────────────────────
+        # direction=+1: 뒤→앞 순서로 처리 (앞 먼저 비워야 연쇄 이동 방지)
+        # direction=-1: 앞→뒤 순서로 처리
         for ch in channels:
             aisle = ch.aisle
-            for pos in range(airplane.num_rows, 0, -1):
+            if ch.direction == 1:
+                scan_range = range(airplane.num_rows, 0, -1)
+            else:
+                scan_range = range(1, airplane.num_rows + 1)
+            for pos in scan_range:
                 p = aisle.cells[pos]
                 if p is None:
                     continue

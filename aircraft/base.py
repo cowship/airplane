@@ -23,10 +23,10 @@ class Aisle:
         # index 0 = 미사용, 1 ~ num_rows = 각 행, num_rows+1 = 대기열 직전
         self.cells: list[Optional[Passenger]] = [None] * (num_rows + 2)
 
-    def is_clear(self, pos: int) -> bool:
-        """pos+1 칸이 비어 있는지 확인."""
-        nxt = pos + 1
-        return nxt < len(self.cells) and self.cells[nxt] is None
+    def is_clear(self, pos: int, direction: int = 1) -> bool:
+        """다음 이동 방향 칸이 비어 있는지 확인."""
+        nxt = pos + direction
+        return 0 < nxt < len(self.cells) and self.cells[nxt] is None
 
     def move_passenger(self, p: Passenger, frm: int, to: int) -> None:
         self.cells[frm] = None
@@ -40,8 +40,9 @@ class BoardingChannel:
     Parameters
     ----------
     aisle       : 이 채널이 관리하는 Aisle 객체
-    entrance_row: 승객이 통로에 진입하는 행 번호 (보통 0의 바로 다음 = 1)
-    seat_cols   : 이 채널을 사용하는 좌석 열 집합 (예: {'A','B','C'})
+    entrance_row: 승객이 통로에 진입하는 행 번호
+    seat_cols   : 이 채널을 사용하는 좌석 열 집합
+    direction   : +1 = 앞→뒤(row 증가), -1 = 뒤→앞(row 감소)
     """
 
     def __init__(
@@ -49,10 +50,12 @@ class BoardingChannel:
         aisle: Aisle,
         entrance_row: int,
         seat_cols: set[str],
+        direction: int = 1,
     ) -> None:
         self.aisle        = aisle
         self.entrance_row = entrance_row
         self.seat_cols    = seat_cols
+        self.direction    = direction
 
 
 # ── 항공기 추상 기반 ────────────────────────────────────────────

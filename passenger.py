@@ -140,10 +140,10 @@ class Passenger:
     # ── 내부 헬퍼 ───────────────────────────────────────────
 
     def _walk(self, airplane) -> None:
-        """목표 행까지 통로를 전진하거나, 도착 시 짐 적재 시작."""
-        # 기종별 채널(통로) 선택
-        ch    = airplane.channel_for_seat(self.target_seat)
-        aisle = ch.aisle
+        """목표 행까지 통로를 이동하거나, 도착 시 짐 적재 시작."""
+        ch        = airplane.channel_for_seat(self.target_seat)
+        aisle     = ch.aisle
+        direction = ch.direction   # +1: 앞→뒤, -1: 뒤→앞
 
         if self.current_pos == self.target_row:
             if self.is_confused:
@@ -157,8 +157,8 @@ class Passenger:
         self._walk_tick += 1
         if self._walk_tick >= self._walk_speed:
             self._walk_tick = 0
-            next_pos = self.current_pos + 1
-            if aisle.is_clear(self.current_pos):
+            next_pos = self.current_pos + direction
+            if aisle.is_clear(self.current_pos, direction):
                 aisle.move_passenger(self, self.current_pos, next_pos)
                 self.current_pos = next_pos
 
