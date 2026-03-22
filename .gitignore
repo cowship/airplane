@@ -16,6 +16,8 @@ results/
 
 # ── 분석/계획 문서 (내부용) ───────────────────────────────────
 airplane_boarding_analysis_plan.md
+algorithm_details.md
+report_outline.md
 
 # ── IDE 설정 ─────────────────────────────────────────────────
 .vscode/
