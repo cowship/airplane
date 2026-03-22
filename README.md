@@ -20,6 +20,207 @@ airplane_sim/
 │   └── flying_wing.py         # FlyingWing  (318석, 통로 4개, 비직사각형)
 │
 ├── boarding/                  # 탑승 모델
+│   ├── methods.py             # 6가지 탑승 전략 (기종 범용)
+│   ├── queue_model.py         # 복잡도 기반 새치기 + 지각 처리
+│   └── group_model.py         # 그룹 승객 배정
+│
+├── deplaning/
+│   └── methods.py             # 4가지 하차 방법
+│
+├── simulation/
+│   ├── engine.py              # 다중 채널 탑승 시뮬레이션 루프
+│   └── deplaning.py           # 하차 시뮬레이션 루프
+│
+├── analysis/
+│   ├── monte_carlo.py         # Monte Carlo 반복 실행 + 통계
+│   ├── sensitivity.py         # 감도 분석 (ψ / 수하물 / 핵심 파라미터)
+│   └── turnaround.py          # 종합 시간 / 탑승률 시나리오 / 소셜 디스턴싱
+│
+└── visualization/
+    ├── results.py             # 히스토그램 + 박스플롯
+    └── realtime.py            # 탑승 과정 격자 시각화 (PNG / GIF)
+```
+
+---
+
+## ⚙️ 설치
+
+```bash
+pip install numpy matplotlib pillow
+```
+
+---
+
+## 🚀 실행 방법
+
+### 1. 단일 시뮬레이션
+
+```bash
+python main.py                                          # NarrowBody, 전략 6종
+python main.py --aircraft twin_aisle                    # 기종 변경
+python main.py --mode both --strategy BySeat            # 탑승 + 하차
+python main.py --aircraft flying_wing --mode both --deplane all
+```
+
+| 옵션 | 선택지 | 기본값 |
+|------|--------|--------|
+| `--aircraft` | `narrow_body` / `twin_aisle` / `flying_wing` | `narrow_body` |
+| `--mode` | `boarding` / `deplaning` / `both` | `boarding` |
+| `--strategy` | `Random` `BackToFront` `FrontToBack` `BySection` `BySeat` `Steffen` `all` | `all` |
+| `--deplane` | `Random` `FrontToBack` `BackToFront` `RowByRow` `all` | `all` |
+
+---
+
+### 2. Monte Carlo 분석
+
+```bash
+python analysis/monte_carlo.py                          # 기본 (200회)
+python analysis/monte_carlo.py \
+  --aircraft twin_aisle \
+  --strategies Random BySeat Steffen \
+  --trials 500 \
+  --plot --save
+```
+
+---
+
+### 3. 감도 분석
+
+파라미터를 바꿔가며 탑승 시간이 얼마나 달라지는지 측정한다.  
+결과 그래프가 `results/` 에 PNG로 저장된다.
+
+```bash
+# 비순응(ψ) 감도 — 승객이 지시를 무시하는 비율 변화
+python analysis/sensitivity.py --mode psi
+
+# 수하물 감도 — 짐 없음/보통/많음 시나리오 비교
+python analysis/sensitivity.py --mode bags
+
+# 핵심 파라미터 민감도 — 보행 속도 / 새치기 비율 / 지각률
+python analysis/sensitivity.py --mode params
+
+# 복잡도 테이블 출력
+python analysis/sensitivity.py --mode complexity
+
+# 전체 실행
+python analysis/sensitivity.py --mode all --trials 40
+```
+
+---
+
+### 4. Phase 4 — 종합 분석
+
+```bash
+# 탑승 + 하차 종합 시간 (Turnaround) 기종/전략별 비교
+python analysis/turnaround.py --mode turnaround
+
+# 탑승률 시나리오 (30% / 50% / 75% / 100%, 구조적 패턴)
+python analysis/turnaround.py --mode occupancy
+
+# 소셜 디스턴싱 (격행 / 창가만 / 체커보드)
+python analysis/turnaround.py --mode distancing
+
+# 전체
+python analysis/turnaround.py \
+  --mode all \
+  --aircraft narrow_body twin_aisle flying_wing \
+  --strategies Random BySeat BackToFront Steffen \
+  --trials 50
+```
+
+---
+
+### 5. 격자 시각화
+
+```bash
+# PNG 스냅샷 그리드 (기본)
+python visualization/realtime.py --aircraft narrow_body --strategy BySeat
+
+# GIF 애니메이션
+python visualization/realtime.py --format gif --interval 15
+
+# 기종별
+python visualization/realtime.py --aircraft twin_aisle  --strategy BySeat
+python visualization/realtime.py --aircraft flying_wing --strategy Random
+```
+
+> 출력 파일명에 timestamp가 포함되어 덮어쓰기 방지.  
+> 예: `results/boarding_snapshots_narrow_body_BySeat_143022.png`
+
+---
+
+## 🛫 항공기 기종
+
+| 기종 | 좌석 | 통로 | 입구 | 특징 |
+|------|------|------|------|------|
+| `narrow_body` | 198석 | 1개 | 1개 | 33행 × 6열 (A-F) |
+| `twin_aisle`  | 242석 | 2개 | 2개 | 전방 95석 + 후방 147석, 7열 (A-G / H-N) |
+| `flying_wing` | 318석 | 4개 | 1개 | 14행 × 24열, 비직사각형 날개 (A-X) |
+
+---
+
+## 🎯 탑승 전략
+
+| 전략 | 복잡도 C | 설명 |
+|------|----------|------|
+| `Random` | 0.000 | 완전 무작위 |
+| `BackToFront` | 0.208 | 뒷열 → 앞열 3구역 |
+| `FrontToBack` | 0.208 | 앞열 → 뒷열 |
+| `BySection` | 0.208 | 3구역 분할 (뒤부터) |
+| `BySeat` | 0.208 | 창가 → 중간 → 통로 |
+| `Steffen` | 1.000 | 이론적 최적, 모든 기종 지원 |
+
+> 복잡도 C = ln(M) / ln(N).  M = 우선순위 그룹 수, N = 전체 승객 수.  
+> C가 클수록 승객이 지시를 지키지 않을 확률(새치기)이 높아진다.
+
+---
+
+## 📊 주요 파라미터 (`config.py`)
+
+| 파라미터 | 기본값 | 근거 |
+|----------|--------|------|
+| `TICK_DURATION` | 0.5s | — |
+| `ADULT_WALK_SPEED` | 2 tick/칸 (≈1.0s/칸) | 2022031 논문: 0.52 m/s 실측 |
+| `SENIOR_WALK_SPEED` | 4 tick/칸 | 성인의 2배 |
+| `WEIBULL_K` | 5.153 | 2022031 논문 실측 보정값 |
+| `WEIBULL_LAMBDA` | 7.774s | 평균 7.0s, 표준편차 1.7s 기반 |
+| `R_J_MAX` | 0.50 | 2022031 논문 채택값 |
+| `GROUP_DISOBEY_PROB` | 0.30 | 2022019 논문 채택값 |
+| `LATE_ARRIVAL_RATE` | 0.05 | 2022031 논문 10% 기준 |
+| `MC_TRIALS` | 200 | — |
+
+> 파라미터 선택의 민감도는 `python analysis/sensitivity.py --mode params` 로 확인 가능.
+
+---
+
+## 📌 참고 문헌
+
+- Steffen, J.H. (2008). Optimal boarding method for airline passengers. *Journal of Air Transport Management*, 14(3).
+- Qiang, S., Jia, B. and Huang, Q. (2017). Evaluation of airplane boarding/deboarding strategies. *Symmetry*, 9(10).
+- Baek, Y., Ha, M. and Jeong, H. (2013). Impact of sequential disorder on the scaling behavior of airplane boarding time. *Physical Review E*, 87(5).
+- IMMC 2022 Problem Statement & Outstanding Solutions (Teams 2022019, 2022031, 2022038).
+
+
+IMMC 2022 문제 기반 항공기 탑승/하차 시뮬레이션 프레임워크.  
+확률적 셀룰러 오토마타 모델로 다양한 탑승 전략을 비교 분석한다.
+
+---
+
+## 📁 프로젝트 구조
+
+```
+airplane_sim/
+├── config.py                  # 모든 파라미터 중앙 관리
+├── passenger.py               # Passenger 상태 머신
+├── main.py                    # CLI 진입점
+│
+├── aircraft/                  # 항공기 기종
+│   ├── base.py                # AircraftBase 추상 클래스
+│   ├── narrow_body.py         # NarrowBody  (198석, 통로 1개)
+│   ├── twin_aisle.py          # TwinAisle   (242석, 통로 2개, 입구 2개)
+│   └── flying_wing.py         # FlyingWing  (318석, 통로 4개, 비직사각형)
+│
+├── boarding/                  # 탑승 모델
 │   ├── methods.py             # 6가지 탑승 전략
 │   ├── queue_model.py         # 복잡도 기반 새치기 + 지각 처리
 │   └── group_model.py         # 그룹 승객 배정
