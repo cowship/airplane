@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse, os, sys, random
 from datetime import datetime
 from collections import deque
+from typing import Callable, Optional
 
 import numpy as np
 import matplotlib
@@ -45,11 +46,12 @@ _SEAT: dict[str, str] = {
 }
 _AISLE_EMPTY = "#B8C9D4"
 _AISLE_BG    = "#D0DCE4"
-_NO_SEAT_BG  = "#F8F8F8"   # 좌석 없는 영역 (FlyingWing 날개 끝 등)
+_NO_SEAT     = "#CCCCCC"   # 좌석 없는 위치 (FlyingWing 날개 끝, TwinAisle middle row 14)
 
 Snapshot = dict[tuple[int, str], str]
-# snap[(row, 'A')]   = seat state  ('', 'empty', 'walking', ...)
-# snap[(row, 'ch0')] = ch0 aisle state at that row
+
+# seat_mapper 타입 alias
+SeatMapper = Callable[[int, str], tuple[int, str]]
 
 
 # ── 레이아웃 정보 추출 ────────────────────────────────────────────
@@ -89,11 +91,11 @@ def _get_display_info(airplane: AircraftBase) -> dict:
         # TwinAisle: display rows = 전방 1-14 + 후방 15-35
         display_rows = list(range(1, front_depth + back_depth + 1))
 
-        def seat_mapper(sim_row: int, sim_col: str):
+        def _seat_mapper_back(sim_row: int, sim_col: str) -> tuple[int, str]:
             if sim_col in back_remap:
                 return (sim_row + front_depth, back_remap[sim_col])
-            else:
-                return (sim_row, sim_col)
+            return (sim_row, sim_col)
+        seat_mapper: SeatMapper = _seat_mapper_back
 
         def aisle_state(aisle_idx: int, disp_row: int, snap: Snapshot) -> str:
             assert aisle_split is not None
@@ -107,8 +109,9 @@ def _get_display_info(airplane: AircraftBase) -> dict:
         # NarrowBody / FlyingWing
         display_rows = sorted({r for r, _ in airplane.passenger_slots()})
 
-        def seat_mapper(sim_row: int, sim_col: str):
+        def _seat_mapper_plain(sim_row: int, sim_col: str) -> tuple[int, str]:
             return (sim_row, sim_col)
+        seat_mapper = _seat_mapper_plain
 
         _ach = aisle_simple or {}
         def aisle_state(aisle_idx: int, disp_row: int, snap: Snapshot) -> str:
@@ -232,9 +235,22 @@ def _render_frame(
             (ax_x - 0.5, -0.5), 1.0, n_rows,
             fc=_AISLE_BG, ec='none', zorder=0))
 
-    # ── 좌석 셀 ──────────────────────────────────────────────────
+    # ── 좌석 셀 (+ 좌석 없는 위치 표시) ─────────────────────────
+    # 먼저 display grid 전체를 순회해 좌석 없는 위치를 _NO_SEAT 로 채움
+    seat_cols_only = [c for c in info['display_cols'] if c != 'AISLE']
+    for disp_row in display_rows:
+        for disp_col in seat_cols_only:
+            x = col_to_x.get(disp_col)
+            y = row_to_y.get(disp_row)
+            if x is None or y is None:
+                continue
+            ax.add_patch(mpatches.FancyBboxPatch(
+                (x - 0.43, y - 0.43), 0.86, 0.86,
+                boxstyle='round,pad=0.04',
+                fc=_NO_SEAT, ec='#BBBBBB', lw=0.3, zorder=1))
+
+    # 실제 좌석 상태 덧그리기
     for (sim_row, sim_col), state in snap.items():
-        # 채널 키 건너뜀 (ch0, ch1, ...)
         if not sim_col.isalpha():
             continue
         if (sim_row, sim_col) not in valid:
