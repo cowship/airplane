@@ -33,8 +33,8 @@ _FRONT_COLS = frozenset('ABCDEFG')
 _BACK_COLS  = frozenset('HIJKLMN')
 
 # 전방 섹션 행 깊이
-#   논문 기준: outer(A,B,F,G) = 14행, middle(C,D,E) = 13행
-_FRONT_OUTER_ROWS  = 14   # A, B, F, G
+#   논문 기준: outer(A,B,F,G) = 15행, middle(C,D,E) = 13행
+_FRONT_OUTER_ROWS  = 15   # A, B, F, G
 _FRONT_MIDDLE_ROWS = 13   # C, D, E
 _FRONT_OUTER_COLS  = frozenset('ABFG')
 _FRONT_MIDDLE_COLS = frozenset('CDE')
@@ -79,7 +79,7 @@ class TwinAisle(AircraftBase):
         'H': 'A', 'I': 'B', 'J': 'C', 'K': 'D',
         'L': 'E', 'M': 'F', 'N': 'G',
     }
-    FRONT_DEPTH = 14   # 전방 섹션 최대 행 수
+    FRONT_DEPTH = 15   # 전방 섹션 최대 행 수
     BACK_DEPTH  = 21   # 후방 섹션 최대 행 수
 
     # aisle_idx → (전방 ch_idx, 후방 ch_idx)
