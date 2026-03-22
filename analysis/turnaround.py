@@ -18,6 +18,7 @@ import argparse
 import os
 import random
 import sys
+from datetime import datetime
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -121,7 +122,8 @@ def run_turnaround(
     fig.suptitle("Total Turnaround Contribution (Boarding + Deplaning)",
                  fontsize=13, fontweight="bold")
     fig.tight_layout()
-    path = os.path.join(out_dir, "turnaround_comparison.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"turnaround_comparison_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"\n  저장: {path}")
@@ -226,7 +228,8 @@ def run_occupancy(
     ax.grid(alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, f"occupancy_{aircraft_name}.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"occupancy_{aircraft_name}_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  저장: {path}")
@@ -329,7 +332,8 @@ def run_social_distancing(
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, f"social_distancing_{aircraft_name}.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"social_distancing_{aircraft_name}_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  저장: {path}")

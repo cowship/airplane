@@ -17,6 +17,7 @@ from typing import Optional
 import argparse
 import os
 import sys
+from datetime import datetime
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -101,7 +102,8 @@ def run_psi_sensitivity(
     ax.grid(alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, "sensitivity_psi.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"sensitivity_psi_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"\n  저장: {path}")
@@ -163,7 +165,8 @@ def run_bag_sensitivity(
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, "sensitivity_bags.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"sensitivity_bags_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"\n  저장: {path}")
@@ -247,7 +250,8 @@ def run_param_sensitivity(
     ax.grid(alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, f"sensitivity_param_{param_name}.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"sensitivity_param_{param_name}_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"\n  저장: {path}")

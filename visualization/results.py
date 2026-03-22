@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Optional
 import os
 import sys
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -80,7 +81,8 @@ def plot_histogram(
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, f"{prefix}_hist_{method_name}.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"{prefix}_hist_{method_name}_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return path
@@ -129,7 +131,8 @@ def plot_boxplot(
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
 
-    path = os.path.join(out_dir, f"{prefix}_boxplot.png")
+    ts   = datetime.now().strftime("%H%M%S")
+    path = os.path.join(out_dir, f"{prefix}_boxplot_{ts}.png")
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return path

@@ -12,6 +12,7 @@ import argparse
 import os
 import random
 import sys
+from datetime import datetime
 
 import numpy as np
 
@@ -138,7 +139,8 @@ def main():
 
     if args.save:
         os.makedirs(config.RESULTS_DIR, exist_ok=True)
-        save_json(summaries, os.path.join(config.RESULTS_DIR, "mc_results.json"))
+        ts = datetime.now().strftime("%H%M%S")
+        save_json(summaries, os.path.join(config.RESULTS_DIR, f"mc_results_{ts}.json"))
 
     if args.plot:
         print("\n📊 그래프 저장 중...")
