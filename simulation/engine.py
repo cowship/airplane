@@ -20,18 +20,37 @@ def run_boarding(
     airplane: AircraftBase,
     queue_manager: QueueManager,
     total_passengers: int,
+    channel_weights: list[float] | None = None,
 ) -> int:
     """
     Returns
     -------
     int
         탑승 완료까지 소요된 틱 수. MAX_TICKS 초과 시 -1.
+
+    Parameters
+    ----------
+    channel_weights : optional
+        채널별 주입 가중치 (예: FlyingWing WeightedBySeat → [75,84,84,75]).
+        None 이면 모든 채널 동일 속도(1.0).
     """
     seated = 0
     ticks  = 0
     channels = airplane.channels
+    n_ch     = len(channels)
 
-    # 시작 전: 전체 큐를 채널별로 분리 (순서 유지)
+    # ── 채널 가중치 정규화 ──────────────────────────────────────
+    # 평균을 1.0 으로 맞춰, 틱마다 각 채널에 norm_w[k] 씩 누적
+    # 누적값 ≥ 1.0 이 되면 승객 1명 주입 → 가중치가 높은 채널이 더 빠르게 주입
+    if channel_weights is not None and len(channel_weights) == n_ch:
+        avg_w    = sum(channel_weights) / n_ch
+        norm_w   = [w / avg_w for w in channel_weights]
+    else:
+        norm_w   = [1.0] * n_ch
+
+    inject_accum = [0.0] * n_ch    # 채널별 주입 누적기
+
+    # ── 전체 큐를 채널별로 분리 (순서 유지) ─────────────────────
     ch_queues: list[deque[Passenger]] = [deque() for _ in channels]
     while True:
         p = queue_manager.pop_next()
@@ -65,14 +84,17 @@ def run_boarding(
                 if prev != "seated" and p.state == "seated":
                     seated += 1
 
-        # ── 2) 채널별 입구 처리 ────────────────────────────────
+        # ── 2) 채널별 입구 처리 (가중치 누적기 방식) ───────────────
         for idx, ch in enumerate(channels):
-            aisle = ch.aisle
-            entry = ch.entrance_row
-            if aisle.cells[entry] is None and ch_queues[idx]:
-                next_p: Passenger = ch_queues[idx].popleft()
-                aisle.cells[entry] = next_p
-                next_p.current_pos = entry
-                next_p.state       = "walking"
+            inject_accum[idx] += norm_w[idx]
+            if inject_accum[idx] >= 1.0 and ch_queues[idx]:
+                aisle = ch.aisle
+                entry = ch.entrance_row
+                if aisle.cells[entry] is None:
+                    inject_accum[idx] -= 1.0
+                    next_p: Passenger = ch_queues[idx].popleft()
+                    aisle.cells[entry] = next_p
+                    next_p.current_pos = entry
+                    next_p.state       = "walking"
 
     return ticks

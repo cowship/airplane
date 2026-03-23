@@ -93,6 +93,86 @@ def by_seat(passengers: list[Passenger]) -> list[Passenger]:
     return result
 
 
+def weighted_by_seat(passengers: list[Passenger]) -> list[Passenger]:
+    """
+    FlyingWing 전용: 가중치 채널 주입 BySeat 방식.
+
+    BySeat와 동일하게 창가→중간→통로 순으로 정렬하되,
+    엔진에서 채널별 진입 속도에 75:84:84:75 가중치를 적용한다.
+    (외곽 통로 75석 : 내부 통로 84석 비율로 조밀하게 주입)
+
+    가중치 처리는 engine.run_boarding()의 channel_weights 파라미터로 전달.
+    """
+    return by_seat(passengers)
+
+
+def reverse_pyramid(passengers: list[Passenger]) -> list[Passenger]:
+    """
+    TwinAisle 전용: 역피라미드(V자형 대각선) 탑승 방식.
+
+    탑승 그룹 번호 = (최대행 - 현재행) + (최대좌석순서 - 좌석순서)
+    → 좌석 간섭(Shuffle Delay) 이론적 0 보장:
+      같은 그룹에서도 항상 창가 → 중간 → 통로 순서 유지
+    → 수하물 병목 분산:
+      같은 그룹 승객이 서로 다른 행에 있어 짐 적재 충돌 감소
+
+    좌석 순서 정의 (interference 규칙 기반):
+      전방 A-G: A=3(창), B=2, C=1(통로인접), D=0(중앙-마지막)
+                E=1(통로인접), F=2, G=3(창)
+      후방 H-N: H=3, I=2, J=1, K=0(중앙), L=1, M=2, N=3
+
+    예시 (후방 21행 기준):
+      그룹 0: 21행 H/N (창가 최심부)
+      그룹 1: 21행 I/M + 20행 H/N
+      그룹 2: 21행 J/L + 20행 I/M + 19행 H/N
+      ...
+    """
+    _FRONT = frozenset('ABCDEFG')
+    _BACK  = frozenset('HIJKLMN')
+
+    # 좌석 탑승 우선순위: 높을수록 먼저 탑승
+    # calculate_interference 규칙: A→B→C→D 순, G→F→E 순
+    _SEAT_ORDER: dict[str, int] = {
+        # 전방 섹션 (A-G): A,G=창(3) B,F=중(2) C,E=통로인접(1) D=중앙(0)
+        'A': 3, 'B': 2, 'C': 1, 'D': 0,
+        'E': 1, 'F': 2, 'G': 3,
+        # 후방 섹션 (H-N): 동일 패턴
+        'H': 3, 'I': 2, 'J': 1, 'K': 0,
+        'L': 1, 'M': 2, 'N': 3,
+    }
+    _MAX_ORDER = 3   # A, G, H, N의 seat_order 값
+
+    front_pax = [p for p in passengers if p.target_seat in _FRONT]
+    back_pax  = [p for p in passengers if p.target_seat in _BACK]
+
+    def pyramid_key(p: Passenger, max_row: int) -> tuple[int, int]:
+        seat_order = _SEAT_ORDER.get(p.target_seat, 0)
+        row_depth  = max_row - p.target_row          # 최심부=0, 입구 방향으로 증가
+        seat_depth = _MAX_ORDER - seat_order          # 창가=0, 중앙=3
+        group      = row_depth + seat_depth           # 작을수록 먼저 탑승
+        return (group, seat_depth)                    # 같은 그룹 내 창가 우선
+
+    front_max = max((p.target_row for p in front_pax), default=1)
+    back_max  = max((p.target_row for p in back_pax),  default=1)
+
+    front_sorted = sorted(front_pax, key=lambda p: pyramid_key(p, front_max))
+    back_sorted  = sorted(back_pax,  key=lambda p: pyramid_key(p, back_max))
+
+    # 전방(95석)·후방(147석) 교대 삽입 — 두 입구 동시 탑승 반영
+    # 95:147 ≈ 2:3 비율
+    result: list[Passenger] = []
+    fi, bi = 0, 0
+    while fi < len(front_sorted) or bi < len(back_sorted):
+        for _ in range(2):
+            if fi < len(front_sorted):
+                result.append(front_sorted[fi]); fi += 1
+        for _ in range(3):
+            if bi < len(back_sorted):
+                result.append(back_sorted[bi]); bi += 1
+
+    return result
+
+
 def steffen_method(passengers: list[Passenger]) -> list[Passenger]:
     """
     Steffen (2008): 짝수열 창가 → 홀수열 창가 → ... — M=N.
@@ -117,23 +197,33 @@ def steffen_method(passengers: list[Passenger]) -> list[Passenger]:
 # ── 전략 레지스트리 ───────────────────────────────────────────
 
 STRATEGIES: dict[str, Callable] = {
-    "Random":      random_boarding,
-    "BackToFront": back_to_front,
-    "FrontToBack": front_to_back,
-    "BySection":   by_section,
-    "BySeat":      by_seat,
-    "Steffen":     steffen_method,
+    "Random":         random_boarding,
+    "BackToFront":    back_to_front,
+    "FrontToBack":    front_to_back,
+    "BySection":      by_section,
+    "BySeat":         by_seat,
+    "Steffen":        steffen_method,
+    "WeightedBySeat": weighted_by_seat,   # FlyingWing 전용
+    "ReversePyramid": reverse_pyramid,    # TwinAisle 전용
 }
 
 # 전략별 우선순위 그룹 수 M (복잡도 계산에 사용)
 # Steffen 은 승객 수 N 과 동일 → None 으로 표시
 STRATEGY_M: dict[str, Optional[int]] = {
-    "Random":      1,
-    "BackToFront": 3,
-    "FrontToBack": 3,
-    "BySection":   3,
-    "BySeat":      3,
-    "Steffen":     None,   # M = N
+    "Random":         1,
+    "BackToFront":    3,
+    "FrontToBack":    3,
+    "BySection":      3,
+    "BySeat":         3,
+    "Steffen":        None,   # M = N
+    "WeightedBySeat": 3,      # BySeat와 동일 (창가/중간/통로 3그룹)
+    "ReversePyramid": 24,     # 후방 21행 × 4단계 ≈ 24 distinct groups
+}
+
+# WeightedBySeat 전용: FlyingWing 채널별 주입 가중치
+# outer(ch0,ch3)=75석 : inner(ch1,ch2)=84석 비율
+STRATEGY_CHANNEL_WEIGHTS: dict[str, list[float]] = {
+    "WeightedBySeat": [75.0, 84.0, 84.0, 75.0],
 }
 
 

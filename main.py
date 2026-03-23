@@ -61,6 +61,7 @@ def run_boarding_sim(
     bag_weights: Optional[tuple]         = None,
     verbose: bool                        = True,
 ) -> int:
+    from boarding.methods import STRATEGY_CHANNEL_WEIGHTS
     passengers = generate_passengers(airplane, bag_weights=bag_weights)
     assign_groups(passengers)
 
@@ -72,7 +73,15 @@ def run_boarding_sim(
         non_compliance_rate = non_compliance_rate,
     )
 
-    ticks = run_boarding(airplane, queue_mgr, total_passengers=len(passengers))
+    # WeightedBySeat 전략은 채널별 가중치 주입 사용
+    channel_weights = STRATEGY_CHANNEL_WEIGHTS.get(strategy_name)
+
+    ticks = run_boarding(
+        airplane,
+        queue_mgr,
+        total_passengers = len(passengers),
+        channel_weights  = channel_weights,
+    )
 
     if verbose:
         if ticks == -1:
