@@ -49,4 +49,9 @@ RANDOM_SEED          = 42
 RESULTS_DIR          = "results/"
 SAVE_PLOTS           = True
 SAVE_JSON            = True
-MAX_TICKS            = 50_000   # 무한루프 방지 상한
+
+# ── 무한루프 방지 ────────────────────────────────────────────
+# flying_wing(318석)은 narrow_body(198석)보다 승객이 많아 시간이 더 걸림.
+# 여유 있게 설정: 승객 수 * 틱당 최대 예상 시간
+#   318명 * 200틱(이동+수납+간섭) = 63,600 → 100,000으로 설정
+MAX_TICKS            = 100_000
