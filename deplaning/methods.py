@@ -33,16 +33,40 @@ def back_to_front(passengers: list[Passenger]) -> list[Passenger]:
     return passengers
 
 
-def row_by_row(passengers: list[Passenger]) -> list[Passenger]:
-    """한 행씩 순서대로 하차 — front_to_back과 동일하나 엄격 적용."""
-    return front_to_back(passengers)
+def aisle_first(passengers: list[Passenger]) -> list[Passenger]:
+    """
+    통로 우선 하차(Aisle → Middle → Window).
+    seat_col을 기준으로 우선순위를 부여한다.
+    """
+    seat_priority = {
+        "A": 3, "B": 2, "C": 1,
+        "D": 1, "E": 2, "F": 3,
+        "G": 1, "H": 1, "I": 2, "J": 2, "K": 3
+    }
+    
+    # 현재 비행기의 좌석 알파벳 종류 스캔
+    unique_seats = set(p.target_seat for p in passengers)
+    
+    # 좌석 종류가 K(11개)를 초과하는 초대형기(Flying Wing 등)인지 확인
+    is_mega_aircraft = len(unique_seats) > 11
+    
+    for p in passengers:
+        if is_mega_aircraft:
+            # 특수 대형기는 통로 구조가 다르고 복잡하여 기존 규칙 적용 시 데드락이 발생함.
+            # 따라서 데드락 위험이 없는 행(Row) 기준 하차로 자동 폴백(Fallback) 적용.
+            p.deplane_priority = p.target_row
+        else:
+            priority_value = seat_priority.get(p.target_seat, 2)
+            p.deplane_priority = p.target_row * 10 + priority_value
+            
+    return passengers
 
 
 DEPLANE_METHODS: dict[str, object] = {
     "Random":       random_deplaning,
     "FrontToBack":  front_to_back,
     "BackToFront":  back_to_front,
-    "RowByRow":     row_by_row,
+    "AisleFirst":   aisle_first,
 }
 
 
