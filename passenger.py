@@ -5,19 +5,12 @@ import random
 import numpy as np
 import config
 
-
 def _sample_bag_stow_time(n_bags: int, n_bins_used: int = 0) -> int:
-    """
-    짐 적재 틱 수 계산.
-
-    USE_WEIBULL=True  → 2022031 Weibull 샘플링 (k=5.153, λ=7.774)
-    USE_WEIBULL=False → 2022019 포화도 수식
-    """
+    """짐 적재 틱 수 계산 (Weibull 분포 또는 포화도 수식 적용)."""
     if n_bags == 0:
         return 0
 
     if config.USE_WEIBULL:
-        # numpy Weibull: np.random.weibull(k) * λ
         total_sec = 0.0
         for _ in range(n_bags):
             s = float(np.random.weibull(config.WEIBULL_K)) * config.WEIBULL_LAMBDA
@@ -25,7 +18,6 @@ def _sample_bag_stow_time(n_bags: int, n_bins_used: int = 0) -> int:
             total_sec += s
         ticks = round(total_sec / config.TICK_DURATION)
     else:
-        # 2022019 포화도 수식
         fill = min(n_bins_used / config.OVERHEAD_BIN_MAX, 0.95)
         t_sec = config.BAG_BASE_TIME_SEC / (1 - config.BAG_FILL_COEFF * fill)
         if n_bags == 2:
@@ -35,36 +27,8 @@ def _sample_bag_stow_time(n_bags: int, n_bins_used: int = 0) -> int:
 
     return max(1, ticks)
 
-
 class Passenger:
-    """
-    한 승객의 속성과 매 틱 행동을 담당.
-
-    state 흐름:
-        waiting → walking → stowing → seating → seated
-    """
-
-    # ── 클래스 레벨 어노테이션 (Pyright 인식용) ─────────────────
-    id:               int
-    target_row:       int
-    target_seat:      str
-    age_group:        str
-    group_id:         int    # 0 = 그룹 없음
-    disobedient:      bool   # 비순응 여부 (그룹 단위로 결정)
-    state:            str
-    current_pos:      int
-    num_bags:         int
-    stow_time:        int
-    is_confused:      bool
-    delay_timer:      int
-    # ── 하차 전용 속성 ────────────────────────────────────────
-    deplane_state:    str    # "seated" | "collecting" | "walking" | "left"
-    deplane_priority: int    # 낮을수록 먼저 하차
-    deplane_current:  int    # 현재 통로 위치
-    collect_timer:    int    # 짐 수거 남은 틱
-    is_late_deplaner: bool   # 늦게 일어나는 승객 여부
-    # ── 기종 공통 ─────────────────────────────────────────────
-    aisle_dist:       int    # 통로까지 거리 (0=통로석, 클수록 창가)
+    """한 승객의 속성과 매 틱 행동을 담당하는 클래스."""
 
     def __init__(
         self,
@@ -77,80 +41,86 @@ class Passenger:
         group_id: int = 0,
         disobedient: bool = False,
     ):
-        self.id           = pass_id
-        self.target_row   = target_row
-        self.target_seat  = target_seat
-        self.age_group    = age_group
-        self.group_id     = group_id       # 0 = 그룹 없음
-        self.disobedient  = disobedient    # 비순응 여부 (그룹 단위로 결정)
+        # ── 1. 기본 인적 사항 ──
+        self.id = pass_id
+        self.target_row = target_row
+        self.target_seat = target_seat
+        self.age_group = age_group
+        self.group_id = group_id
+        self.disobedient = disobedient
+        self.aisle_dist = 0  # 기종 설정 시 외부에서 덮어씌워짐
 
-        # ── 상태 ────────────────────────────────────────────
-        self.state       = "waiting"
-        self.current_pos = 0          # 현재 통로 위치 (1-indexed row)
-
-        # ── 이동 속도 ────────────────────────────────────────
+        # ── 2. 탑승(Boarding) 전용 상태 및 속성 ──
+        self.state = "waiting"        # waiting → walking → stowing → seating → seated
+        self.current_pos = 0          # 현재 통로 위치
+        self.delay_timer = 0          # 각종 대기(짐 싣기, 길 비켜주기 등) 틱 타이머
+        self.is_confused = random.random() < config.CONFUSED_PROB
+        
         if age_group == "senior":
             self._walk_speed = config.SENIOR_WALK_SPEED
-            self._stow_mult  = config.SENIOR_STOW_MULT
+            self._stow_mult = config.SENIOR_STOW_MULT
         else:
             self._walk_speed = config.ADULT_WALK_SPEED
-            self._stow_mult  = 1.0
+            self._stow_mult = 1.0
 
         self._walk_tick = 0
-
-        # ── 짐 ──────────────────────────────────────────────
         weights = bag_weights or config.BAG_PROB
-        self.num_bags  = random.choices([0, 1, 2], weights=weights)[0]
-        raw_ticks      = _sample_bag_stow_time(self.num_bags, n_bins_used)
+        self.num_bags = random.choices([0, 1, 2], weights=weights)[0]
+        raw_ticks = _sample_bag_stow_time(self.num_bags, n_bins_used)
         self.stow_time = round(raw_ticks * self._stow_mult)
 
-        # ── 기타 속성 ────────────────────────────────────────
-        self.is_confused = random.random() < config.CONFUSED_PROB
-        self.delay_timer = 0
+        # ── 3. 하차(Deplaning) 전용 상태 및 속성 (초기화 필수!) ──
+        self.deplane_state = "seated" # seated → collecting → walking → left
+        self.deplane_current = 0      # 하차 시 현재 통로 위치
+        self.collect_timer = 0        # 하차 시 짐 수거 남은 틱
+        self.is_late_deplaner = False # 늦게 내리는 승객 여부
+        
+        # 데드락 방지용 우선순위 속성들 (에러의 주원인이었던 부분)
+        self.deplane_priority = 0     # 부여받은 기본 하차 순서
+        self.base_priority = 0        # 늦게 내리기 등이 반영된 베이스 순서
+        self.effective_priority = 0   # 앞길 막힘(Priority Inheritance)이 반영된 최종 순서
 
     # ── 공개 메서드 ─────────────────────────────────────────
 
     def act(self, airplane) -> None:
-        """매 틱마다 호출. 상태 전이 및 이동 처리."""
+        """매 틱마다 호출되는 탑승(Boarding) 메인 행동 로직."""
         if self.state == "seated":
             return
 
-        # 1) stowing 완료 → seating 진입
-        if self.state == "stowing" and self.delay_timer <= 0:
-            self.state = "seating"
-            interference = airplane.calculate_interference(
-                self.target_row, self.target_seat
-            )
-            self.delay_timer = config.SIT_DOWN_TICKS + interference
-
-        # 2) seating 완료 → seated
-        if self.state == "seating" and self.delay_timer <= 0:
-            self._sit_down(airplane)
-            return
-
-        # 3) 대기 중인 타이머 소모
+        # 1. 대기 타이머가 있다면 틱 소모 후 행동 종료 (우선 처리)
         if self.delay_timer > 0:
             self.delay_timer -= 1
             return
 
-        # 4) 통로 이동 로직
-        if self.state == "walking":
+        # 2. 상태 전이 로직 (타이머가 0일 때만 실행됨)
+        if self.state == "stowing":
+            # 짐 넣기 완료 → 자리에 앉기 위한 간섭(Interference) 틱 계산
+            self.state = "seating"
+            interference = airplane.calculate_interference(self.target_row, self.target_seat)
+            self.delay_timer = config.SIT_DOWN_TICKS + interference
+            
+        elif self.state == "seating":
+            # 자리 앉기 대기 완료 → 실제 착석
+            self._sit_down(airplane)
+            
+        elif self.state == "walking":
+            # 걷기 수행
             self._walk(airplane)
 
     # ── 내부 헬퍼 ───────────────────────────────────────────
 
     def _walk(self, airplane) -> None:
         """목표 행까지 통로를 이동하거나, 도착 시 짐 적재 시작."""
-        ch        = airplane.channel_for_seat(self.target_seat)
-        aisle     = ch.aisle
-        direction = ch.direction   # +1: 앞→뒤, -1: 뒤→앞
+        ch = airplane.channel_for_seat(self.target_seat)
+        aisle = ch.aisle
+        direction = ch.direction  # +1: 앞→뒤, -1: 뒤→앞
 
         if self.current_pos == self.target_row:
             if self.is_confused:
                 self.is_confused = False
                 self.delay_timer = config.CONFUSED_DELAY_TICKS
                 return
-            self.state       = "stowing"
+            self.state = "stowing"
             self.delay_timer = self.stow_time
             return
 
@@ -164,7 +134,7 @@ class Passenger:
 
     def _sit_down(self, airplane) -> None:
         """통로에서 빠져나와 좌석에 착석."""
-        ch    = airplane.channel_for_seat(self.target_seat)
+        ch = airplane.channel_for_seat(self.target_seat)
         aisle = ch.aisle
         aisle.cells[self.current_pos] = None
         airplane.seats[self.target_row][self.target_seat] = self
@@ -173,5 +143,5 @@ class Passenger:
     def __repr__(self) -> str:
         return (
             f"Passenger(id={self.id}, seat={self.target_row}{self.target_seat}, "
-            f"state={self.state}, bags={self.num_bags})"
+            f"board_state={self.state}, deplane_state={self.deplane_state})"
         )
