@@ -147,12 +147,19 @@ def run_bag_sensitivity(
     fig, ax = plt.subplots(figsize=(10, 5))
     for i, strategy in enumerate(strategies):
         vals = [results[strategy][lb] for lb in labels]
-        offset = (i - len(strategies) / 2 + 0.5) * width
-        ax.bar(
-            x + offset, vals, width,
+        
+        # 막대그래프용 offset 계산은 이제 필요 없으므로 지우거나 주석 처리합니다.
+        # offset = (i - len(strategies) / 2 + 0.5) * width 
+
+        ax.plot(
+            x, vals,             # offset 없이 x축 위치를 그대로 사용
+            marker='o',          # 각 데이터 위치에 동그라미(o) 점을 찍음
+            markersize=8,        # 점의 크기
+            linestyle='-',       # 점들을 잇는 선 모양 (실선)
+            linewidth=2,         # 선의 굵기
             label=strategy,
             color=_COLORS.get(strategy, "#333333"),
-            alpha=0.85,
+            alpha=0.85
         )
 
     ax.set_title("Sensitivity: Baggage Distribution vs Boarding Time",
