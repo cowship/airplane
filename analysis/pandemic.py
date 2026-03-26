@@ -318,7 +318,7 @@ def _plot_aircraft_heatmap(
         ax.set_xticklabels(strategies, rotation=30, ha="right", fontsize=8)
         ax.set_yticks(range(len(aircraft_names)))
         ax.set_yticklabels(aircraft_names, fontsize=9)
-        ax.set_title(f"탑승률 {_RATE_LABELS[rate]}  (d={get_distance(rate)})",
+        ax.set_title(f"Boarding rate {_RATE_LABELS[rate]}  (d={get_distance(rate)})",
                      fontsize=10, fontweight="bold")
 
         for i in range(len(aircraft_names)):
@@ -370,7 +370,7 @@ def _plot_aircraft_bar(
         ax.set_title(ac_name, fontsize=11, fontweight="bold")
         ax.set_ylabel("Mean Boarding Time (s)", fontsize=9)
         ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%ds"))
-        ax.legend(fontsize=8, title="탑승률")
+        ax.legend(fontsize=8, title="Boarding Rate")
         ax.grid(axis="y", alpha=0.3)
 
     fig.suptitle("[Pandemic] Optimal Strategy per Aircraft × Occupancy",
