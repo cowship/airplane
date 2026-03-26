@@ -108,58 +108,46 @@ def weighted_by_seat(passengers: list[Passenger]) -> list[Passenger]:
 
 def reverse_pyramid(passengers: list[Passenger]) -> list[Passenger]:
     """
-    TwinAisle 전용: 역피라미드(V자형 대각선) 탑승 방식.
-
-    탑승 그룹 번호 = (최대행 - 현재행) + (최대좌석순서 - 좌석순서)
-    → 좌석 간섭(Shuffle Delay) 이론적 0 보장:
-      같은 그룹에서도 항상 창가 → 중간 → 통로 순서 유지
-    → 수하물 병목 분산:
-      같은 그룹 승객이 서로 다른 행에 있어 짐 적재 충돌 감소
-
-    좌석 순서 정의 (interference 규칙 기반):
-      전방 A-G: A=3(창), B=2, C=1(통로인접), D=0(중앙-마지막)
-                E=1(통로인접), F=2, G=3(창)
-      후방 H-N: H=3, I=2, J=1, K=0(중앙), L=1, M=2, N=3
-
-    예시 (후방 21행 기준):
-      그룹 0: 21행 H/N (창가 최심부)
-      그룹 1: 21행 I/M + 20행 H/N
-      그룹 2: 21행 J/L + 20행 I/M + 19행 H/N
-      ...
+    TwinAisle 전용: 양방향 역피라미드(V자형 대각선) 탑승 방식.
+    
+    [핵심 로직 변경]
+    - 전방(앞문 진입): 기체 중간(max_row)이 가장 깊으므로 max_row부터 입구(1열) 방향으로 채움.
+    - 후방(뒷문 진입): 기체 중간(min_row)이 가장 깊으므로 min_row부터 입구(끝열) 방향으로 채움.
     """
     _FRONT = frozenset('ABCDEFG')
     _BACK  = frozenset('HIJKLMN')
 
-    # 좌석 탑승 우선순위: 높을수록 먼저 탑승
-    # calculate_interference 규칙: A→B→C→D 순, G→F→E 순
     _SEAT_ORDER: dict[str, int] = {
-        # 전방 섹션 (A-G): A,G=창(3) B,F=중(2) C,E=통로인접(1) D=중앙(0)
-        'A': 3, 'B': 2, 'C': 1, 'D': 0,
-        'E': 1, 'F': 2, 'G': 3,
-        # 후방 섹션 (H-N): 동일 패턴
-        'H': 3, 'I': 2, 'J': 1, 'K': 0,
-        'L': 1, 'M': 2, 'N': 3,
+        'A': 3, 'B': 2, 'C': 1, 'D': 0, 'E': 1, 'F': 2, 'G': 3,
+        'H': 3, 'I': 2, 'J': 1, 'K': 0, 'L': 1, 'M': 2, 'N': 3,
     }
     _MAX_ORDER = 3   # A, G, H, N의 seat_order 값
 
     front_pax = [p for p in passengers if p.target_seat in _FRONT]
     back_pax  = [p for p in passengers if p.target_seat in _BACK]
 
-    def pyramid_key(p: Passenger, max_row: int) -> tuple[int, int]:
+    def pyramid_key(p: Passenger, base_row: int, is_front_door: bool) -> tuple[int, int]:
         seat_order = _SEAT_ORDER.get(p.target_seat, 0)
-        row_depth  = max_row - p.target_row          # 최심부=0, 입구 방향으로 증가
-        seat_depth = _MAX_ORDER - seat_order          # 창가=0, 중앙=3
-        group      = row_depth + seat_depth           # 작을수록 먼저 탑승
-        return (group, seat_depth)                    # 같은 그룹 내 창가 우선
+        
+        # 전방/후방 진입구 위치에 따른 행 깊이(row_depth) 계산 분리
+        if is_front_door:
+            row_depth = base_row - p.target_row  # 전방: 번호가 큰 행일수록 깊음
+        else:
+            row_depth = p.target_row - base_row  # 후방: 번호가 작은 행(중앙)일수록 깊음
+            
+        seat_depth = _MAX_ORDER - seat_order     # 창가=0, 중앙=3
+        group      = row_depth + seat_depth      # 작을수록(깊을수록) 먼저 탑승
+        return (group, seat_depth)               # 같은 그룹 내 창가 우선
 
+    # 전방은 가장 큰 열 번호가 기준, 후방은 가장 작은 열 번호가 기준
     front_max = max((p.target_row for p in front_pax), default=1)
-    back_max  = max((p.target_row for p in back_pax),  default=1)
+    back_min  = min((p.target_row for p in back_pax),  default=1)
 
-    front_sorted = sorted(front_pax, key=lambda p: pyramid_key(p, front_max))
-    back_sorted  = sorted(back_pax,  key=lambda p: pyramid_key(p, back_max))
+    # 각각의 기준과 진입 방향 플래그(True/False)를 넣어 정렬
+    front_sorted = sorted(front_pax, key=lambda p: pyramid_key(p, front_max, is_front_door=True))
+    back_sorted  = sorted(back_pax,  key=lambda p: pyramid_key(p, back_min, is_front_door=False))
 
-    # 전방(95석)·후방(147석) 교대 삽입 — 두 입구 동시 탑승 반영
-    # 95:147 ≈ 2:3 비율
+    # 전방(95석)·후방(147석) 교대 삽입 — 두 입구 동시 탑승 반영 (2:3 비율)
     result: list[Passenger] = []
     fi, bi = 0, 0
     while fi < len(front_sorted) or bi < len(back_sorted):
