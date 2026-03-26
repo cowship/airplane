@@ -177,16 +177,14 @@ def run_bag_sensitivity(
 # ── C. 복잡도 출력 ────────────────────────────────────────────
 
 def print_complexity_table(n_passengers: int = 198) -> None:
-    print(f"\n{'전략':<14} {'M':>6} {'C':>8}  {'해석'}")
+    print(f"\n{'전략':<14} {'C':>8}  {'해석'}")
     print("-" * 50)
-    from boarding.methods import STRATEGY_M
-    for name, m in STRATEGY_M.items():
+    for name in STRATEGIES:
         c  = boarding_complexity(name, n_passengers)
-        mp = n_passengers if m is None else m
         note = "새치기 없음" if c == 0 else (
                "높은 복잡도" if c >= 0.8 else "중간 복잡도"
         )
-        print(f"{name:<14} {mp:>6} {c:>8.3f}  {note}")
+        print(f"{name:<14} {c:>8.3f}  {note}")
     print()
 
 
@@ -269,7 +267,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--strategies", "-s", nargs="+",
-        default=["Random", "BySeat", "BackToFront", "Steffen"],
+        # default=["Random", "BySeat", "BackToFront", "Steffen"],
+        default=list(STRATEGIES.keys()),
+        help="분석할 전략 (기본: all)",
     )
     parser.add_argument("--trials", "-n", type=int, default=_TRIALS)
     args = parser.parse_args()
